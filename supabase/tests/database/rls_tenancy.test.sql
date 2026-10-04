@@ -1,7 +1,7 @@
 -- Tenancy & privilege tests. Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(49);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -194,6 +194,46 @@ select pg_temp.login('a0000000-0000-0000-0000-000000000000', 'alice@example.com'
 set local role authenticated;
 select throws_ok($$update public.submissions set release_signed_name = 'Forged'$$,
                  '42501', null, 'signed release evidence is immutable');
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Phase 2: created_by attribution and booking status rules
+-- ---------------------------------------------------------------------------
+select pg_temp.login('c0000000-0000-0000-0000-000000000000', 'carol@example.com');
+set local role authenticated;
+
+with ins as (
+  insert into public.episodes (organization_id, title, created_by)
+  values ('0a000000-0000-0000-0000-000000000000', 'Forged', 'a0000000-0000-0000-0000-000000000000')
+  returning created_by
+)
+select is((select created_by from ins), 'c0000000-0000-0000-0000-000000000000'::uuid,
+          'created_by is always the signed-in user');
+select throws_ok($$update public.guests set created_by = 'a0000000-0000-0000-0000-000000000000'$$,
+                 '42501', null, 'created_by cannot be changed');
+
+-- Guest A2 in org A has a booking with no submission yet.
+insert into public.guests (id, organization_id, full_name)
+  values ('90a20000-0000-0000-0000-000000000000', '0a000000-0000-0000-0000-000000000000', 'Guest A2');
+insert into public.episode_guests (organization_id, episode_id, guest_id)
+  values ('0a000000-0000-0000-0000-000000000000',
+          'e0a00000-0000-0000-0000-000000000000', '90a20000-0000-0000-0000-000000000000');
+
+select throws_ok($$update public.episode_guests set status = 'assets_submitted'
+                   where guest_id = '90a20000-0000-0000-0000-000000000000'$$,
+                 '22023', null, 'hosts cannot fake a submission');
+select throws_ok($$update public.episode_guests set status = 'ready'
+                   where guest_id = '90a20000-0000-0000-0000-000000000000'$$,
+                 '22023', null, 'nothing submitted means it cannot be marked ready');
+select lives_ok($$update public.episode_guests set status = 'cancelled'
+                  where guest_id = '90a20000-0000-0000-0000-000000000000'$$, 'hosts can cancel a booking');
+select lives_ok($$update public.episode_guests set status = 'pending'
+                  where guest_id = '90a20000-0000-0000-0000-000000000000'$$,
+                'a cancelled booking without a submission is restored to pending');
+-- Guest A's booking has a submission (from the portal tests above).
+select throws_ok($$update public.episode_guests set status = 'pending'
+                   where id = 'ea000000-0000-0000-0000-000000000000'$$,
+                 '22023', null, 'a submitted booking cannot go back to pending');
 reset role;
 
 select * from finish();

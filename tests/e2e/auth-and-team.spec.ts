@@ -27,7 +27,7 @@ test("owner creates a workspace, invites a teammate, teammate joins", async ({ b
   await owner.getByLabel("Workspace URL").fill(slug);
   await owner.getByRole("button", { name: "Create workspace" }).click();
   await expect(owner).toHaveURL(new RegExp(`/${slug}$`));
-  await expect(owner.getByRole("heading", { name: "Welcome to The Test Show" })).toBeVisible();
+  await expect(owner.getByRole("heading", { name: "The Test Show", level: 1 })).toBeVisible();
 
   // Invite a member; email isn't configured locally, so the link is shown.
   await owner.getByRole("link", { name: "Team", exact: true }).click();

@@ -38,16 +38,21 @@ MVP; billing (Phase 5) is wired in before launch.
 **Done when:** two users in different orgs can't see each other's data, and an
 invited teammate can.
 
-## Phase 2: Episodes and guests (2–3 days)
+## Phase 2: Episodes and guests ✅
 
-- Episode CRUD with a list (status filter, sorted by recording date) and a
-  detail page.
-- Guest directory CRUD, with email dedupe per org.
+- Episode CRUD with a list (status filter, sorted by recording date,
+  paginated) and a detail page. Dates are entered and shown in the viewer's
+  time zone.
+- Guest directory CRUD with search, and email dedupe per org (booking a "new"
+  guest whose email is already in the directory reuses that guest).
 - Book a guest onto an episode (`episode_guests`), with a status badge on each
-  booking.
-- "Generate link": `issue_onboarding_token()`, then a dialog with the
-  copyable `/submit/<token>` URL (shown once; regenerating rotates it).
+  booking. Cancel, restore, or remove a booking; a booking with a signed
+  release can only be cancelled, never deleted.
+- "Get link": `issue_onboarding_token()`, then a dialog with the copyable
+  `/submit/<token>` URL (shown once; "New link" asks first, then rotates it).
 - Dashboard: upcoming recordings and counts by status.
+- Migration `20261004020000`: `created_by` is always the signed-in user, and
+  hosts can only cancel/restore booking status (no faking a submission).
 
 **Done when:** a host can create an episode, book a guest, and copy their link.
 

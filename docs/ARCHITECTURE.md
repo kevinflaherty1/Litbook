@@ -116,8 +116,8 @@ litbook/
 │   │   │   ├── page.tsx                 # overview / getting-started checklist
 │   │   │   ├── settings/page.tsx        # workspace, release form, your profile
 │   │   │   ├── settings/team/page.tsx   # members, roles, invitations
-│   │   │   ├── episodes/…               # (Phase 2)
-│   │   │   ├── guests/…                 # (Phase 2/4) directory + Asset Vault
+│   │   │   ├── episodes/                # list (status filter), new, [episodeId] (bookings + links)
+│   │   │   ├── guests/                  # directory (search), [guestId]; Asset Vault in Phase 4
 │   │   │   └── settings/billing/…       # (Phase 5)
 │   │   │
 │   │   ├── submit/[token]/              # (Phase 3) PUBLIC guest portal
@@ -127,7 +127,10 @@ litbook/
 │   │   ├── auth/                        # magic link, OAuth, sign out; AuthForm
 │   │   ├── organizations/               # create/update org, release form; requireOrgMembership
 │   │   ├── team/                        # invite, accept, roles, remove/leave, profile
-│   │   ├── episodes/ guests/ portal/ billing/   # (Phases 2–5)
+│   │   ├── episodes/                    # episode CRUD, dashboard queries
+│   │   ├── guests/                      # guest directory CRUD
+│   │   ├── bookings/                    # book guests, onboarding links, cancel/restore
+│   │   ├── portal/ billing/             # (Phases 3, 5)
 │   │
 │   ├── components/
 │   │   ├── ui/                          # shadcn/ui primitives (Radix + CVA)
@@ -151,7 +154,8 @@ litbook/
 │   ├── schemas/                         # Zod, shared by client + server
 │   │   ├── auth.ts
 │   │   ├── organization.ts              # slug rules + reserved slugs (mirrors DB)
-│   │   └── team.ts
+│   │   ├── team.ts
+│   │   └── episode.ts / guest.ts / booking.ts
 │   │
 │   └── types/database.ts                # generated: pnpm db:types (CI fails on drift)
 │
@@ -180,5 +184,9 @@ litbook/
   cookie-bound client, so RLS always applies.
 - **Zod limits mirror the DB `check` constraints.** The DB is the backstop; Zod
   gives the user friendly errors.
+- **Times** are stored as `timestamptz` and shown with `LocalDateTime`, which
+  formats in the viewer's time zone without a hydration flash (inline script,
+  per the Next.js "preventing flash" guide). `DateTimeInput` converts
+  `datetime-local` values to ISO in the browser.
 - **Types** are regenerated from the database after every migration
   (`pnpm db:types`). CI regenerates them and fails if the committed file differs.

@@ -36,3 +36,15 @@ export async function signUp(page: Page, name: string, email: string) {
   await page.getByRole("button", { name: "Create account" }).click();
   await completeMagicLink(page, email);
 }
+
+/** Signs up a new user and creates a workspace for them. Returns its slug. */
+export async function signUpWithWorkspace(page: Page, name: string, email: string, showName: string) {
+  const slug = `show-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
+  await signUp(page, name, email);
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByLabel("Show or company name").fill(showName);
+  await page.getByLabel("Workspace URL").fill(slug);
+  await page.getByRole("button", { name: "Create workspace" }).click();
+  await expect(page).toHaveURL(new RegExp(`/${slug}$`));
+  return slug;
+}

@@ -42,21 +42,23 @@ export function InviteMemberForm({ orgId }: { orgId: string }) {
           <Input type="email" placeholder="producer@yourshow.com" {...form.register("email")} />
         </Field>
         <Field id="invite-role" label="Role" error={errors.role?.message}>
-          <Controller
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
+          {(props) => (
+            <Controller
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger className="w-32" {...props}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          )}
         </Field>
         <Button type="submit" className="mt-[1.375rem]" disabled={isPending}>
           {isPending && <Loader2 className="animate-spin" />}
