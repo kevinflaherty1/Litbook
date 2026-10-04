@@ -294,6 +294,7 @@ export type Database = {
       };
       organizations: {
         Row: {
+          billing_event_at: string | null;
           cancel_at_period_end: boolean;
           created_at: string;
           created_by: string | null;
@@ -311,6 +312,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          billing_event_at?: string | null;
           cancel_at_period_end?: boolean;
           created_at?: string;
           created_by?: string | null;
@@ -328,6 +330,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          billing_event_at?: string | null;
           cancel_at_period_end?: boolean;
           created_at?: string;
           created_by?: string | null;
@@ -500,6 +503,19 @@ export type Database = {
     };
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: string };
+      apply_stripe_subscription: {
+        Args: {
+          p_cancel_at_period_end: boolean;
+          p_current_period_end: string;
+          p_customer: string;
+          p_event_at: string;
+          p_org: string;
+          p_price: string;
+          p_status: Database["public"]["Enums"]["subscription_status"];
+          p_subscription: string;
+        };
+        Returns: string;
+      };
       check_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number };
         Returns: boolean;
@@ -511,6 +527,7 @@ export type Database = {
       create_organization: {
         Args: { p_name: string; p_slug: string };
         Returns: {
+          billing_event_at: string | null;
           cancel_at_period_end: boolean;
           created_at: string;
           created_by: string | null;

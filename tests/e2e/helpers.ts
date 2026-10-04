@@ -65,7 +65,10 @@ export async function bookGuestAndGetLink(page: Page, guestName: string, episode
 
   await page.getByLabel("Name", { exact: true }).fill(guestName);
   await page.getByRole("button", { name: "Add and book" }).click();
-  const row = page.getByRole("listitem").filter({ hasText: guestName });
+  const row = page
+    .getByRole("list", { name: "Booked guests" })
+    .getByRole("listitem")
+    .filter({ hasText: guestName });
   await row.getByRole("button", { name: "Get link" }).click();
   const url = (await page.getByTestId("onboarding-url").textContent())!;
   await page.getByRole("button", { name: "Done" }).click();

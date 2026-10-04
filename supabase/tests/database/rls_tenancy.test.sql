@@ -1,7 +1,7 @@
 -- Tenancy & privilege tests. Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(61);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -247,6 +247,40 @@ select lives_ok($$update public.episode_guests set status = 'pending'
 select throws_ok($$update public.episode_guests set status = 'pending'
                    where id = 'ea000000-0000-0000-0000-000000000000'$$,
                  '22023', null, 'a submitted booking cannot go back to pending');
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Phase 5: billing webhook writes and the subscription gate
+-- ---------------------------------------------------------------------------
+set local role service_role;
+select is(public.apply_stripe_subscription('0a000000-0000-0000-0000-000000000000', 'cus_A', 'sub_A', 'price_pro',
+            'active', now() + interval '30 days', false, '2026-01-01 00:00:10+00'),
+          '0a000000-0000-0000-0000-000000000000'::uuid, 'webhook applies a subscription');
+-- An older event (e.g. a retried subscription.created) is ignored.
+select public.apply_stripe_subscription(null, 'cus_A', null, null, 'incomplete', null, null, '2026-01-01 00:00:05+00');
+select is((select subscription_status::text from public.organizations where id = '0a000000-0000-0000-0000-000000000000'),
+          'active', 'out-of-order events cannot roll status back');
+-- An ids-only update with a later timestamp doesn't block status events.
+select public.apply_stripe_subscription('0a000000-0000-0000-0000-000000000000', 'cus_A', 'sub_A', null, null, null, null,
+                                        '2026-01-01 00:00:20+00');
+select public.apply_stripe_subscription(null, 'cus_A', null, null, 'past_due', null, null, '2026-01-01 00:00:15+00');
+select is((select subscription_status::text from public.organizations where id = '0a000000-0000-0000-0000-000000000000'),
+          'past_due', 'checkout ids-only updates do not swallow status events');
+select is(public.apply_stripe_subscription(null, 'cus_unknown', null, null, 'active', null, null, now()), null,
+          'unknown customers are ignored');
+reset role;
+
+select pg_temp.login('c0000000-0000-0000-0000-000000000000', 'carol@example.com');
+set local role authenticated;
+select is(public.org_has_active_subscription('0a000000-0000-0000-0000-000000000000'), false, 'past_due is not active');
+select throws_ok($$select public.apply_stripe_subscription('0a000000-0000-0000-0000-000000000000', 'x', 'x', 'x',
+                   'active', null, false, now())$$, '42501', null, 'signed-in users cannot write billing');
+reset role;
+update public.organizations set subscription_status = 'active', current_period_end = now() - interval '1 day'
+  where id = '0a000000-0000-0000-0000-000000000000';
+set local role authenticated;
+select is(public.org_has_active_subscription('0a000000-0000-0000-0000-000000000000'), true,
+          'a just-lapsed period still counts during the grace window');
 reset role;
 
 select * from finish();

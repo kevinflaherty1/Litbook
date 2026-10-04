@@ -30,6 +30,7 @@ http://127.0.0.1:54324 to click your magic link.
 | ------------------------- | ---------------------------------------------------- |
 | `pnpm lint` / `typecheck` | ESLint, TypeScript                                   |
 | `pnpm test`               | Unit tests (Vitest)                                  |
+| `pnpm test:integration`   | Webhook + storage tests against local Supabase       |
 | `pnpm test:e2e`           | End-to-end tests (Playwright; needs `db:start`)      |
 | `pnpm db:test`            | RLS and privilege tests (pgTAP)                      |
 | `pnpm db:reset`           | Rebuild the local database from migrations           |
@@ -41,5 +42,11 @@ http://127.0.0.1:54324 to click your magic link.
 - **Google sign-in:** enable `[auth.external.google]` in `supabase/config.toml`,
   set the `SUPABASE_AUTH_EXTERNAL_GOOGLE_*` variables, and set
   `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`.
-- **Invite emails:** set `RESEND_API_KEY`. Without it, the inviter is shown the
-  invite link to share.
+- **Emails:** set `RESEND_API_KEY` for team invites and "guest submitted"
+  notifications. Without it, emails are logged and invite links are shown to
+  the inviter to share.
+- **Billing:** set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
+  `STRIPE_PRICE_ID` (a $29/month recurring price). Without them there's no
+  paywall. Forward webhooks locally with
+  `stripe listen --forward-to localhost:3000/api/webhooks/stripe`, and enable
+  the Customer Portal in the Stripe dashboard.

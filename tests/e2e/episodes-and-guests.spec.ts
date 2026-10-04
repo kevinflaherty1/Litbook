@@ -30,7 +30,10 @@ test("host creates an episode, books guests, and gets onboarding links", async (
   await page.getByLabel("Email (optional)").fill(adaEmail.toUpperCase());
   await page.getByRole("button", { name: "Add and book" }).click();
   await expect(page.getByText("Ada Lovelace added and booked")).toBeVisible();
-  const adaRow = page.getByRole("listitem").filter({ hasText: "Ada Lovelace" });
+  const adaRow = page
+    .getByRole("list", { name: "Booked guests" })
+    .getByRole("listitem")
+    .filter({ hasText: "Ada Lovelace" });
   await expect(adaRow.getByText("Waiting on guest")).toBeVisible();
   await expect(adaRow.getByText(adaEmail)).toBeVisible(); // stored lowercased
   await expect(adaRow.getByText("No link yet")).toBeVisible();
@@ -78,7 +81,10 @@ test("host creates an episode, books guests, and gets onboarding links", async (
   await page.getByRole("option", { name: /Grace Hopper/ }).click();
   await page.getByRole("button", { name: "Book guest" }).click();
   await expect(page.getByText("Grace Hopper booked")).toBeVisible();
-  const graceRow = page.getByRole("listitem").filter({ hasText: "Grace Hopper" });
+  const graceRow = page
+    .getByRole("list", { name: "Booked guests" })
+    .getByRole("listitem")
+    .filter({ hasText: "Grace Hopper" });
 
   // Cancel → restore → remove.
   await graceRow.getByRole("button", { name: "More actions for Grace Hopper" }).click();
@@ -109,7 +115,12 @@ test("host creates an episode, books guests, and gets onboarding links", async (
   // Fits a phone screen without sideways scrolling.
   await page.setViewportSize({ width: 375, height: 800 });
   await page.goto(episodeUrl);
-  await expect(page.getByRole("listitem").filter({ hasText: "Ada Lovelace" })).toBeVisible();
+  await expect(
+    page
+      .getByRole("list", { name: "Booked guests" })
+      .getByRole("listitem")
+      .filter({ hasText: "Ada Lovelace" }),
+  ).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
 
   // Another workspace's user gets a 404 for this episode; junk ids 404 too.

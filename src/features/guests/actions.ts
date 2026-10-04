@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { fail, ok } from "@/lib/action-result";
 import { isPgError, PG } from "@/lib/errors";
 import { orgAction } from "@/lib/safe-action";
+import { removeStoragePrefix } from "@/lib/storage";
 import { createGuestSchema, deleteGuestSchema, updateGuestSchema } from "@/schemas/guest";
 
 const EMAIL_TAKEN = { email: ["A guest with this email is already in your directory."] };
@@ -51,6 +52,14 @@ export const deleteGuest = orgAction(
   deleteGuestSchema,
   { roles: ["owner", "admin"] },
   async (input, { supabase, org }) => {
+    // Storage files aren't removed by the cascade; collect the bookings first.
+    const { data: bookings, error: bookingsError } = await supabase
+      .from("episode_guests")
+      .select("id")
+      .eq("organization_id", org.id)
+      .eq("guest_id", input.guestId);
+    if (bookingsError) throw bookingsError;
+
     const { data, error } = await supabase
       .from("guests")
       .delete()
@@ -59,6 +68,7 @@ export const deleteGuest = orgAction(
       .select("id");
     if (error) throw error;
     if (!data.length) return fail("That guest couldn't be deleted.");
+    await Promise.all(bookings.map((b) => removeStoragePrefix(`${org.id}/${b.id}/`)));
 
     redirect(`/${org.slug}/guests`);
   },

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Contact, LayoutDashboard, Mic, Settings, Users } from "lucide-react";
+import { Contact, CreditCard, LayoutDashboard, Mic, Settings, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export function AppSidebarNav({ orgSlug }: { orgSlug: string }) {
+export function AppSidebarNav({ orgSlug, showBilling }: { orgSlug: string; showBilling: boolean }) {
   const pathname = usePathname();
   const base = `/${orgSlug}`;
   const items = [
@@ -15,6 +15,9 @@ export function AppSidebarNav({ orgSlug }: { orgSlug: string }) {
     { href: `${base}/guests`, label: "Guests", icon: Contact, exact: false },
     { href: `${base}/settings/team`, label: "Team", icon: Users, exact: false },
     { href: `${base}/settings`, label: "Settings", icon: Settings, exact: true },
+    ...(showBilling
+      ? [{ href: `${base}/settings/billing`, label: "Billing", icon: CreditCard, exact: false }]
+      : []),
   ];
 
   return (

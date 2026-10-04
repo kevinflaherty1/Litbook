@@ -90,22 +90,28 @@ invited teammate can.
 - Release record on the booking page and a PDF download (pdf-lib), with the
   signer, timestamp, version, IP and browser.
 
-## Phase 5: Stripe billing (2 days)
+## Phase 5: Stripe billing ✅
 
-- Products: Litbook Pro at $29/mo, with a trial set in Stripe.
-- `createCheckoutSession`: creates the Stripe customer and saves
-  `stripe_customer_id`, using `client_reference_id = org.id`.
-- `/api/webhooks/stripe`: verify the signature, then insert into
-  `stripe_events` (skip duplicates), then upsert billing columns on
-  `checkout.session.completed` and `customer.subscription.created`,
-  `customer.subscription.updated`, and `customer.subscription.deleted`.
-- Customer Portal for plan changes and cancellation.
-- Gate _create_ actions (new episode, generate link) with
-  `org_has_active_subscription()`. Reading and exporting always stay allowed.
-- Billing page: status, renewal date, and a past-due banner.
-
-**Done when:** test-mode checkout turns an org active, and cancelling turns
-it back.
+- Litbook Pro at $29/mo (`STRIPE_PRICE_ID`), with a `STRIPE_TRIAL_DAYS`
+  trial (default 14) that needs no card up front. Billing is off entirely
+  when `STRIPE_SECRET_KEY` isn't set.
+- `startCheckout`: creates the Stripe customer (idempotency key per org) and
+  saves `stripe_customer_id`, using `client_reference_id = org.id` and
+  `subscription_data.metadata.organization_id`. An org with a live
+  subscription is sent to the portal instead, so it can't subscribe twice.
+- `/api/webhooks/stripe`: verifies the signature, skips events already in
+  `stripe_events`, applies `checkout.session.completed` and
+  `customer.subscription.*` through `apply_stripe_subscription()` (which
+  ignores events older than the last one applied), then records the event.
+  A failure returns 500 so Stripe retries. Structured JSON logs.
+- Customer Portal for plan changes, payment details and cancellation.
+- Creating episodes and onboarding links needs `org_has_active_subscription()`
+  (3 days' grace after the period ends). Reading and exporting always work.
+- Billing page: status, trial/renewal date, scheduled cancellation, and a
+  past-due banner across the app.
+- Workspace deletion (owners, type-to-confirm): cancels the subscription,
+  removes stored files, then deletes the org. Deleting episodes, guests and
+  bookings now removes their files too.
 
 ## Phase 6: Hardening and launch (2–3 days)
 

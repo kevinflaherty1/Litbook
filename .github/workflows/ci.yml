@@ -68,6 +68,9 @@ jobs:
             echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
           } > .env.local
 
+      - name: Integration tests (webhook, storage)
+        run: pnpm test:integration
+
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
       - name: E2E tests

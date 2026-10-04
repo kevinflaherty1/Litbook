@@ -2,10 +2,12 @@
 
 import { refresh } from "next/cache";
 
+import { requireActiveSubscription } from "@/features/billing/gate";
 import { fail, ok } from "@/lib/action-result";
 import { env } from "@/lib/env";
 import { isPgError, PG } from "@/lib/errors";
 import { orgAction } from "@/lib/safe-action";
+import { removeStoragePrefix } from "@/lib/storage";
 import type { createClient } from "@/lib/supabase/server";
 import {
   bookExistingGuestSchema,
@@ -86,6 +88,9 @@ export const bookNewGuest = orgAction(bookNewGuestSchema, {}, async (input, { su
  * is returned once; issuing another invalidates the previous link.
  */
 export const generateOnboardingLink = orgAction(bookingRefSchema, {}, async (input, { supabase, org }) => {
+  const paywall = await requireActiveSubscription(supabase, org.id);
+  if (paywall) return paywall;
+
   const { data: booking, error: bookingError } = await supabase
     .from("episode_guests")
     .select("status")
@@ -153,6 +158,8 @@ export const removeBooking = orgAction(bookingRefSchema, {}, async (input, { sup
   if (!data.length) {
     return fail("This guest has already submitted a signed release. Cancel the booking instead.");
   }
+  // A headshot may have been uploaded without being submitted.
+  await removeStoragePrefix(`${org.id}/${input.bookingId}/`);
 
   refresh();
   return ok(undefined);

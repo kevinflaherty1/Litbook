@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrganizationSettingsForm } from "@/features/organizations/components/organization-settings-form";
+import { DeleteOrganizationForm } from "@/features/organizations/components/delete-organization-form";
 import { ReleaseFormEditor } from "@/features/organizations/components/release-form-editor";
 import { requireOrgMembership } from "@/features/organizations/queries";
 import { ProfileForm } from "@/features/team/components/profile-form";
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/settings">) {
   const { orgSlug } = await params;
-  const { org, user, canManage } = await requireOrgMembership(orgSlug);
+  const { org, user, role, canManage } = await requireOrgMembership(orgSlug);
   const supabase = await createClient();
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
 
@@ -54,6 +55,21 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
           <ProfileForm fullName={profile?.full_name ?? ""} email={user.email} />
         </CardContent>
       </Card>
+      {role === "owner" && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle>Delete workspace</CardTitle>
+            <CardDescription>
+              Permanently deletes {org.name}: every episode, guest, submission, headshot and signed release.
+              Any subscription is cancelled immediately. This can&apos;t be undone, so export anything you
+              need first.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DeleteOrganizationForm orgId={org.id} slug={org.slug} />
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

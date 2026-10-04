@@ -125,10 +125,10 @@ litbook/
 │   │   │   ├── guests/                  # directory (search), [guestId]
 │   │   │   ├── bookings/[bookingId]/    # Asset Vault: assets, fix typos, release; /headshot, /release (PDF)
 │   │   │   ├── episodes/[episodeId]/export/  # streamed ZIP: headshots + guests.md
-│   │   │   └── settings/billing/…       # (Phase 5)
+│   │   │   └── settings/billing/        # plan status, checkout, Customer Portal
 │   │   │
 │   │   ├── submit/[token]/              # PUBLIC guest portal: form, /done, friendly 404
-│   │   └── api/webhooks/stripe/         # (Phase 5)
+│   │   └── api/webhooks/stripe/         # signature check → apply_stripe_subscription()
 │   │
 │   ├── features/                        # domain modules: actions, queries, UI
 │   │   ├── auth/                        # magic link, OAuth, sign out; AuthForm
@@ -138,7 +138,7 @@ litbook/
 │   │   ├── guests/                      # guest directory CRUD
 │   │   ├── bookings/                    # book guests, links, cancel/restore, ready, vault, release PDF
 │   │   ├── portal/                      # token context, headshot upload, submit, host email
-│   │   ├── billing/                     # (Phase 5)
+│   │   ├── billing/                     # checkout, portal, webhook handling, paywall gate
 │   │
 │   ├── components/
 │   │   ├── ui/                          # shadcn/ui primitives (Radix + CVA)
@@ -159,6 +159,8 @@ litbook/
 │   │   ├── redirect.ts                  # safeNextPath(): open-redirect guard
 │   │   ├── rate-limit.ts                # Postgres-backed rate limits + request IP/UA
 │   │   ├── route-auth.ts                # org access for route handlers (404 otherwise)
+│   │   ├── stripe.ts                    # Stripe client, billingEnabled, subscription mapping
+│   │   ├── storage.ts                   # removeStoragePrefix(): file cleanup after deletes
 │   │   ├── social.ts / show-notes.ts    # profile URLs; show notes + guests.md formatting
 │   │   └── errors.ts                    # Postgres SQLSTATE helpers
 │   │
@@ -171,7 +173,8 @@ litbook/
 │   └── types/database.ts                # generated: pnpm db:types (CI fails on drift)
 │
 ├── tests/
-│   ├── unit/                            # Vitest: schemas, redirect guard
+│   ├── unit/                            # Vitest: schemas, redirect guard, formatting
+│   ├── integration/                     # Vitest against local Supabase: webhook, storage
 │   └── e2e/                             # Playwright against local Supabase + Mailpit
 │
 ├── .github/workflows/ci.yml
