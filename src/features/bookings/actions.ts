@@ -12,7 +12,9 @@ import {
   bookingRefSchema,
   bookNewGuestSchema,
   setBookingCancelledSchema,
+  setBookingReadySchema,
 } from "@/schemas/booking";
+import { submissionContentSchema } from "@/schemas/portal";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -155,3 +157,51 @@ export const removeBooking = orgAction(bookingRefSchema, {}, async (input, { sup
   refresh();
   return ok(undefined);
 });
+
+/**
+ * "Mark ready" locks the guest's submission (the portal stops accepting
+ * edits); "Reopen" lets them edit again. Both need a submission to exist.
+ */
+export const setBookingReady = orgAction(setBookingReadySchema, {}, async (input, { supabase, org }) => {
+  const { data, error } = await supabase
+    .from("episode_guests")
+    .update({ status: input.ready ? "ready" : "assets_submitted" })
+    .eq("organization_id", org.id)
+    .eq("id", input.bookingId)
+    .neq("status", "cancelled")
+    .select("id");
+  if (isPgError(error, PG.invalidParameter)) return fail("The guest hasn't submitted anything yet.");
+  if (error) throw error;
+  if (!data.length) return fail("That booking can't be changed right now.");
+
+  refresh();
+  return ok(undefined);
+});
+
+/** Lets the host fix typos in what the guest submitted. The signed release is untouched. */
+export const updateSubmissionContent = orgAction(
+  submissionContentSchema,
+  {},
+  async (input, { supabase, org }) => {
+    const { data, error } = await supabase
+      .from("submissions")
+      .update({
+        display_name: input.displayName,
+        headline: input.headline,
+        short_bio: input.shortBio,
+        long_bio: input.longBio,
+        pronouns: input.pronouns,
+        name_pronunciation: input.namePronunciation,
+        website_url: input.websiteUrl,
+        social_links: input.socialLinks,
+      })
+      .eq("organization_id", org.id)
+      .eq("episode_guest_id", input.bookingId)
+      .select("id");
+    if (error) throw error;
+    if (!data.length) return fail("There's no submission to edit yet.");
+
+    refresh();
+    return ok(undefined);
+  },
+);

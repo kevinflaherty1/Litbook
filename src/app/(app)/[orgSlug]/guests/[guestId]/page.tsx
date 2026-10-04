@@ -88,7 +88,12 @@ export default async function GuestPage({ params }: PageProps<"/[orgSlug]/guests
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <BookingStatusBadge status={b.status} />
+                      <Link
+                        href={`/${org.slug}/bookings/${b.id}`}
+                        aria-label={`View ${b.episodes.title} booking`}
+                      >
+                        <BookingStatusBadge status={b.status} />
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -48,3 +48,45 @@ export async function signUpWithWorkspace(page: Page, name: string, email: strin
   await expect(page).toHaveURL(new RegExp(`/${slug}$`));
   return slug;
 }
+
+// A valid 1×1 PNG.
+export const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+/** Host creates an episode, books a guest, and returns the guest's onboarding link. */
+export async function bookGuestAndGetLink(page: Page, guestName: string, episodeTitle = "Poetical Science") {
+  await page.getByRole("link", { name: "Episodes", exact: true }).click();
+  await page.getByRole("link", { name: "New episode" }).first().click();
+  await page.getByLabel("Title").fill(episodeTitle);
+  await page.getByRole("button", { name: "Create episode" }).click();
+  await expect(page.getByRole("heading", { name: episodeTitle })).toBeVisible();
+
+  await page.getByLabel("Name", { exact: true }).fill(guestName);
+  await page.getByRole("button", { name: "Add and book" }).click();
+  const row = page.getByRole("listitem").filter({ hasText: guestName });
+  await row.getByRole("button", { name: "Get link" }).click();
+  const url = (await page.getByTestId("onboarding-url").textContent())!;
+  await page.getByRole("button", { name: "Done" }).click();
+  return { url, row, episodeUrl: page.url() };
+}
+
+/** The guest fills in the portal form with a headshot and signs. */
+export async function completePortal(
+  guest: Page,
+  url: string,
+  details: { shortBio: string; headline?: string },
+) {
+  await guest.goto(url);
+  if (details.headline) await guest.getByLabel("Headline").fill(details.headline);
+  await guest.getByLabel("Short bio").fill(details.shortBio);
+  await guest.getByLabel("Website").fill("ada.dev");
+  await guest.getByLabel("X / Twitter").fill("@ada");
+  await guest.getByLabel("Headshot").setInputFiles({ name: "ada.png", mimeType: "image/png", buffer: PNG });
+  await expect(guest.getByText("Looking good!")).toBeVisible();
+  await guest.getByLabel("I have read and agree").check();
+  await guest.getByLabel("Type your full name to sign").fill("Ada Lovelace");
+  await guest.getByRole("button", { name: /Send to my host|Save my updates/ }).click();
+  await expect(guest).toHaveURL(/\/done$/);
+}

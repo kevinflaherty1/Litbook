@@ -116,10 +116,7 @@ export function BookingsTable({
               )}
             >
               <div className="grid min-w-0 flex-1 basis-56">
-                <Link
-                  href={`/${orgSlug}/guests/${b.guests.id}`}
-                  className="w-fit font-medium hover:underline"
-                >
+                <Link href={`/${orgSlug}/bookings/${b.id}`} className="w-fit font-medium hover:underline">
                   {name}
                 </Link>
                 {b.guests.email && (

@@ -1,29 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { signUpWithWorkspace, uniqueEmail } from "./helpers";
-
-// A valid 1×1 PNG.
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-  "base64",
-);
-
-/** Host creates an episode, books a guest, and returns the guest's onboarding link. */
-async function bookGuestAndGetLink(page: Page, guestName: string) {
-  await page.getByRole("link", { name: "Episodes", exact: true }).click();
-  await page.getByRole("link", { name: "New episode" }).first().click();
-  await page.getByLabel("Title").fill("Poetical Science");
-  await page.getByRole("button", { name: "Create episode" }).click();
-  await expect(page.getByRole("heading", { name: "Poetical Science" })).toBeVisible();
-
-  await page.getByLabel("Name", { exact: true }).fill(guestName);
-  await page.getByRole("button", { name: "Add and book" }).click();
-  const row = page.getByRole("listitem").filter({ hasText: guestName });
-  await row.getByRole("button", { name: "Get link" }).click();
-  const url = (await page.getByTestId("onboarding-url").textContent())!;
-  await page.getByRole("button", { name: "Done" }).click();
-  return { url, row };
-}
+import { bookGuestAndGetLink, PNG, signUpWithWorkspace, uniqueEmail } from "./helpers";
 
 test("guest completes onboarding with only the link, then edits it", async ({ page, browser }) => {
   await signUpWithWorkspace(page, "Hana Host", uniqueEmail("host"), "Deep Dive Radio");

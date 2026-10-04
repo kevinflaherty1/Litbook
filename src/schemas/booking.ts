@@ -33,3 +33,5 @@ export const setBookingCancelledSchema = bookingRefSchema.extend({ cancelled: z.
 
 export type BookExistingGuestInput = z.input<typeof bookExistingGuestSchema>;
 export type BookNewGuestInput = z.input<typeof bookNewGuestSchema>;
+
+export const setBookingReadySchema = bookingRefSchema.extend({ ready: z.boolean() });

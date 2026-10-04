@@ -77,19 +77,18 @@ invited teammate can.
 - Email the teammate who booked the guest (or the owners) when a guest
   submits, sent after the response with `after()`.
 
-## Phase 4: Asset Vault and export (2 days)
+## Phase 4: Asset Vault and export ✅
 
-- Guest and booking detail: copy buttons for each bio length and the
-  headline, clickable social handles, and headshot preview and download (a
-  signed URL with `download` set, expiring after 60 seconds).
+- Booking page (`/[orgSlug]/bookings/[bookingId]`): copy buttons for the
+  headline and each bio, clickable social handles (resolved to profile URLs,
+  http(s) only), and headshot preview plus download (a signed URL with
+  `download` set, expiring after 60 seconds).
 - The host can fix typos in the guest's content (release fields stay
-  read-only), and "Mark ready" locks guest edits.
-- Export: "Copy show notes" as a formatted text block, and a per-episode ZIP
-  of headshots plus a `guests.md` (built server-side and streamed).
-- Release form view and PDF download for records.
-
-**Done when:** a host can go from a booking to show-notes-ready assets in a
-few clicks.
+  read-only), and "Mark ready" locks guest edits; "Reopen" unlocks them.
+- Export: "Copy show notes" per guest and per episode, and a per-episode ZIP
+  of headshots plus a `guests.md`, streamed from a route handler with fflate.
+- Release record on the booking page and a PDF download (pdf-lib), with the
+  signer, timestamp, version, IP and browser.
 
 ## Phase 5: Stripe billing (2 days)
 

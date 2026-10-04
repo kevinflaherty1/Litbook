@@ -97,3 +97,19 @@ export const headshotUploadSchema = z.object({
 });
 
 export type OnboardingSubmissionInput = z.input<typeof onboardingSubmissionSchema>;
+
+/** What a host may correct in a guest's submission. Release fields are never editable. */
+export const submissionContentSchema = onboardingSubmissionSchema
+  .pick({
+    displayName: true,
+    headline: true,
+    shortBio: true,
+    longBio: true,
+    pronouns: true,
+    namePronunciation: true,
+    websiteUrl: true,
+    socialLinks: true,
+  })
+  .extend({ orgId: z.uuid(), bookingId: z.uuid() });
+
+export type SubmissionContentInput = z.input<typeof submissionContentSchema>;

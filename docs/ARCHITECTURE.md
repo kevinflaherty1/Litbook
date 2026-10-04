@@ -122,7 +122,9 @@ litbook/
 │   │   │   ├── settings/page.tsx        # workspace, release form, your profile
 │   │   │   ├── settings/team/page.tsx   # members, roles, invitations
 │   │   │   ├── episodes/                # list (status filter), new, [episodeId] (bookings + links)
-│   │   │   ├── guests/                  # directory (search), [guestId]; Asset Vault in Phase 4
+│   │   │   ├── guests/                  # directory (search), [guestId]
+│   │   │   ├── bookings/[bookingId]/    # Asset Vault: assets, fix typos, release; /headshot, /release (PDF)
+│   │   │   ├── episodes/[episodeId]/export/  # streamed ZIP: headshots + guests.md
 │   │   │   └── settings/billing/…       # (Phase 5)
 │   │   │
 │   │   ├── submit/[token]/              # PUBLIC guest portal: form, /done, friendly 404
@@ -134,7 +136,7 @@ litbook/
 │   │   ├── team/                        # invite, accept, roles, remove/leave, profile
 │   │   ├── episodes/                    # episode CRUD, dashboard queries
 │   │   ├── guests/                      # guest directory CRUD
-│   │   ├── bookings/                    # book guests, onboarding links, cancel/restore
+│   │   ├── bookings/                    # book guests, links, cancel/restore, ready, vault, release PDF
 │   │   ├── portal/                      # token context, headshot upload, submit, host email
 │   │   ├── billing/                     # (Phase 5)
 │   │
@@ -156,6 +158,8 @@ litbook/
 │   │   ├── email.ts                     # Resend (logs instead when unconfigured)
 │   │   ├── redirect.ts                  # safeNextPath(): open-redirect guard
 │   │   ├── rate-limit.ts                # Postgres-backed rate limits + request IP/UA
+│   │   ├── route-auth.ts                # org access for route handlers (404 otherwise)
+│   │   ├── social.ts / show-notes.ts    # profile URLs; show notes + guests.md formatting
 │   │   └── errors.ts                    # Postgres SQLSTATE helpers
 │   │
 │   ├── schemas/                         # Zod, shared by client + server
