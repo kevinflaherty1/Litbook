@@ -8,6 +8,7 @@ export const PG = {
   insufficientPrivilege: "42501",
   noDataFound: "P0002",
   invalidParameter: "22023",
+  objectNotInPrerequisiteState: "55000",
 } as const;
 
 export function isPgError(error: unknown, code: string): error is PostgrestError {

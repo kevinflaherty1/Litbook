@@ -1,7 +1,7 @@
 -- Tenancy & privilege tests. Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(49);
+select plan(54);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -181,6 +181,15 @@ select throws_ok($$select public.submit_onboarding('guest-token-aaaaaaaaaaaaaaaa
                    '{"release_accepted": true, "release_signed_name": "G",
                      "headshot_path": "0b000000-0000-0000-0000-000000000000/x/h.jpg"}')$$,
                  '22023', null, 'headshot must be under the booking''s own prefix');
+select throws_ok($$select public.submit_onboarding('guest-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                   '{"release_accepted": true, "release_signed_name": "G",
+                     "headshot_path": "0a000000-0000-0000-0000-000000000000/ea000000-0000-0000-0000-000000000000/missing.jpg"}')$$,
+                 '22023', null, 'headshot must actually have been uploaded');
+select public.record_onboarding_visit('guest-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+select isnt((select token_last_used_at from public.episode_guests
+             where id = 'ea000000-0000-0000-0000-000000000000'), null, 'opening the link is recorded');
+select results_eq($$select public.check_rate_limit('test:key', 2, 60) from generate_series(1, 3)$$,
+                  $$values (true), (true), (false)$$, 'rate limit allows N hits per window');
 select lives_ok($$select public.submit_onboarding('guest-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
                   '{"short_bio": "Hi", "release_accepted": true, "release_signed_name": "Guest A"}',
                   '203.0.113.7', 'test-agent')$$,
@@ -194,6 +203,10 @@ select pg_temp.login('a0000000-0000-0000-0000-000000000000', 'alice@example.com'
 set local role authenticated;
 select throws_ok($$update public.submissions set release_signed_name = 'Forged'$$,
                  '42501', null, 'signed release evidence is immutable');
+select throws_ok($$select public.check_rate_limit('x', 1, 60)$$, '42501', null,
+                 'signed-in users cannot touch rate limits');
+select throws_ok($$select count(*) from public.rate_limits$$, '42501', null,
+                 'signed-in users cannot read rate limits');
 reset role;
 
 -- ---------------------------------------------------------------------------

@@ -46,6 +46,29 @@ export function authedAction<S extends z.ZodType, T>(
 }
 
 /**
+ * For public actions (the guest portal), where the caller proves access some
+ * other way, such as an onboarding token checked by the handler.
+ */
+export function publicAction<S extends z.ZodType, T>(
+  schema: S,
+  handler: (input: z.output<S>) => Promise<ActionResult<T>>,
+) {
+  return async (raw: z.input<S>): Promise<ActionResult<T>> => {
+    try {
+      const parsed = schema.safeParse(raw);
+      if (!parsed.success) {
+        return fail("Please fix the highlighted fields.", fieldErrorsOf(parsed.error));
+      }
+      return await handler(parsed.data);
+    } catch (error) {
+      unstable_rethrow(error);
+      console.error("[action] unexpected error", error);
+      return fail("Something went wrong. Please try again.");
+    }
+  };
+}
+
+/**
  * Like authedAction, for actions scoped to one organization. The input must
  * include `orgId`; membership (and optionally role) is verified server-side
  * before the handler runs. RLS enforces the same rules again in the database.

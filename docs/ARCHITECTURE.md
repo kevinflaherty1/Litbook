@@ -73,6 +73,11 @@ Migration: [`supabase/migrations/20261004000000_initial_schema.sql`](../supabase
    sets the status to `assets_submitted`.
 5. When the host marks a booking `ready`, the guest can no longer edit.
 
+Portal actions are rate-limited per link and per IP through
+`check_rate_limit()` (service_role only). The portal pages send
+`Referrer-Policy: no-referrer` and `noindex`, because the URL is the
+credential.
+
 **Rules that keep tenancy safe:**
 
 - Never trust a client-supplied `organization_id`. Server actions resolve the
@@ -120,7 +125,7 @@ litbook/
 │   │   │   ├── guests/                  # directory (search), [guestId]; Asset Vault in Phase 4
 │   │   │   └── settings/billing/…       # (Phase 5)
 │   │   │
-│   │   ├── submit/[token]/              # (Phase 3) PUBLIC guest portal
+│   │   ├── submit/[token]/              # PUBLIC guest portal: form, /done, friendly 404
 │   │   └── api/webhooks/stripe/         # (Phase 5)
 │   │
 │   ├── features/                        # domain modules: actions, queries, UI
@@ -130,7 +135,8 @@ litbook/
 │   │   ├── episodes/                    # episode CRUD, dashboard queries
 │   │   ├── guests/                      # guest directory CRUD
 │   │   ├── bookings/                    # book guests, onboarding links, cancel/restore
-│   │   ├── portal/ billing/             # (Phases 3, 5)
+│   │   ├── portal/                      # token context, headshot upload, submit, host email
+│   │   ├── billing/                     # (Phase 5)
 │   │
 │   ├── components/
 │   │   ├── ui/                          # shadcn/ui primitives (Radix + CVA)
@@ -149,6 +155,7 @@ litbook/
 │   │   ├── env.ts / env.server.ts       # Zod-validated public / server-only env
 │   │   ├── email.ts                     # Resend (logs instead when unconfigured)
 │   │   ├── redirect.ts                  # safeNextPath(): open-redirect guard
+│   │   ├── rate-limit.ts                # Postgres-backed rate limits + request IP/UA
 │   │   └── errors.ts                    # Postgres SQLSTATE helpers
 │   │
 │   ├── schemas/                         # Zod, shared by client + server

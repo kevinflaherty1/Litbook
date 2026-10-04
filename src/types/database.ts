@@ -381,6 +381,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      rate_limits: {
+        Row: {
+          hits: number;
+          key: string;
+          window_start: string;
+        };
+        Insert: {
+          hits?: number;
+          key: string;
+          window_start: string;
+        };
+        Update: {
+          hits?: number;
+          key?: string;
+          window_start?: string;
+        };
+        Relationships: [];
+      };
       stripe_events: {
         Row: {
           id: string;
@@ -482,6 +500,10 @@ export type Database = {
     };
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: string };
+      check_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number };
+        Returns: boolean;
+      };
       create_invitation: {
         Args: { p_email: string; p_org: string; p_role?: Database["public"]["Enums"]["org_role"] };
         Returns: string;
@@ -523,6 +545,7 @@ export type Database = {
       is_org_member: { Args: { p_org: string }; Returns: boolean };
       issue_onboarding_token: { Args: { p_episode_guest_id: string; p_ttl?: string }; Returns: string };
       org_has_active_subscription: { Args: { p_org: string }; Returns: boolean };
+      record_onboarding_visit: { Args: { p_token: string }; Returns: undefined };
       shares_org_with: { Args: { p_user: string }; Returns: boolean };
       storage_object_org_id: { Args: { p_name: string }; Returns: string };
       submit_onboarding: {

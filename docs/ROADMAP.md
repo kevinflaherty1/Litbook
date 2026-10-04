@@ -56,22 +56,26 @@ invited teammate can.
 
 **Done when:** a host can create an episode, book a guest, and copy their link.
 
-## Phase 3: Guest onboarding portal (3–4 days)
+## Phase 3: Guest onboarding portal ✅
 
-- `/submit/[token]`: loads through `get_onboarding_context()` and calls
-  `notFound()` on an invalid link.
+- `/submit/[token]`: loads through `get_onboarding_context()` and shows a
+  friendly "link isn't working" page for unknown, expired, rotated, or
+  cancelled links. Marked `noindex` and `Referrer-Policy: no-referrer`.
 - `OnboardingForm` (react-hook-form + the shared Zod schema): name, headline,
-  short and long bio, pronouns, pronunciation, website, social links.
+  short and long bio, pronouns, pronunciation, website (normalised to
+  https), social links.
 - `HeadshotDropzone`: client-side type and size check, a server action mints a
-  signed upload URL, the browser uploads directly, then a preview is shown.
-- `ReleaseSignature`: shows the org's release text, plus a "type your full
-  name" field and an "I agree" checkbox.
-- Submit through `submit_onboarding()` and redirect to `/submitted`. Guests can
-  come back and edit until the booking is marked ready.
-- Rate-limit portal actions per token and IP (for example with Upstash).
-- Email the host when a guest submits.
-
-**Done when:** a guest with only the link can complete onboarding on mobile.
+  signed upload URL, the browser uploads directly, then a preview is shown. A
+  replaced headshot is deleted; `submit_onboarding()` checks the file exists.
+- Release: the org's release text, an "I agree" checkbox, and a typed-name
+  signature (re-signed on every save; IP, user agent, version and text
+  snapshot recorded).
+- Submit through `submit_onboarding()` and redirect to `/submit/[token]/done`.
+  Guests can come back and edit until the booking is marked ready.
+- Rate limits per link and per IP, in Postgres (`check_rate_limit()`), so
+  there's no extra infrastructure. Opening a link is recorded for the host.
+- Email the teammate who booked the guest (or the owners) when a guest
+  submits, sent after the response with `after()`.
 
 ## Phase 4: Asset Vault and export (2 days)
 
