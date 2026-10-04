@@ -83,3 +83,5 @@ export function slugify(input: string): string {
 export type CreateOrganizationInput = z.input<typeof createOrganizationSchema>;
 export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
 export type UpdateReleaseFormInput = z.input<typeof updateReleaseFormSchema>;
+
+export const updateGuestRemindersSchema = z.object({ orgId: z.uuid(), enabled: z.boolean() });

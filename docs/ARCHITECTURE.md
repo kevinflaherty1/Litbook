@@ -129,7 +129,9 @@ litbook/
 │   │   │   └── settings/billing/        # plan status, checkout, Customer Portal
 │   │   │
 │   │   ├── submit/[token]/              # PUBLIC guest portal: form, /done, friendly 404
-│   │   └── api/webhooks/stripe/         # signature check → apply_stripe_subscription()
+│   │   ├── api/webhooks/stripe/         # signature check → apply_stripe_subscription()
+│   │   ├── api/cron/reminders/          # daily guest reminders (CRON_SECRET)
+│   │   └── api/health/                  # uptime check
 │   │
 │   ├── features/                        # domain modules: actions, queries, UI
 │   │   ├── auth/                        # magic link, OAuth, sign out; AuthForm
@@ -156,7 +158,7 @@ litbook/
 │   │   ├── action-result.ts             # ActionResult type, ok() / fail() (client-safe)
 │   │   ├── forms.ts                     # map ActionResult errors onto react-hook-form
 │   │   ├── env.ts / env.server.ts       # Zod-validated public / server-only env
-│   │   ├── email.ts                     # Resend (logs instead when unconfigured)
+│   │   ├── email.ts                     # Resend; Mailpit in dev/CI; logs when unconfigured
 │   │   ├── redirect.ts                  # safeNextPath(): open-redirect guard
 │   │   ├── rate-limit.ts                # Postgres-backed rate limits + request IP/UA
 │   │   ├── route-auth.ts                # org access for route handlers (404 otherwise)

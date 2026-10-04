@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Link2, MoreHorizontal, RotateCcw } from "lucide-react";
+import { Link2, Mail, MoreHorizontal, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { LocalDateTime } from "@/components/shared/local-date-time";
@@ -23,7 +23,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { generateOnboardingLink, removeBooking, setBookingCancelled } from "@/features/bookings/actions";
+import {
+  emailOnboardingLink,
+  generateOnboardingLink,
+  removeBooking,
+  setBookingCancelled,
+} from "@/features/bookings/actions";
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
 import { OnboardingLinkDialog } from "@/features/bookings/components/onboarding-link-dialog";
 import type { ActionResult } from "@/lib/action-result";
@@ -37,6 +42,8 @@ export type BookingRow = {
   token_last_used_at: string | null;
   submitted_at: string | null;
   linkExpired: boolean;
+  link_emailed_at: string | null;
+  reminder_count: number;
   guests: { id: string; full_name: string; email: string | null };
 };
 
@@ -61,6 +68,15 @@ function LinkState({ booking }: { booking: BookingRow }) {
       </span>
     );
   }
+  if (booking.link_emailed_at) {
+    const n = booking.reminder_count;
+    return (
+      <span>
+        Emailed <LocalDateTime value={booking.link_emailed_at} options={DATE_ONLY} />
+        {n > 0 && ` · ${n} ${n === 1 ? "reminder" : "reminders"} sent`}
+      </span>
+    );
+  }
   return (
     <span>
       Link expires <LocalDateTime value={booking.token_expires_at} options={DATE_ONLY} />
@@ -78,8 +94,8 @@ export function BookingsTable({
   bookings: BookingRow[];
 }) {
   const [isPending, startTransition] = useTransition();
-  const [link, setLink] = useState<{ guestName: string; url: string } | null>(null);
-  const [replacing, setReplacing] = useState<BookingRow | null>(null);
+  const [link, setLink] = useState<{ guestName: string; url: string; note?: string } | null>(null);
+  const [replacing, setReplacing] = useState<{ booking: BookingRow; mode: "copy" | "email" } | null>(null);
 
   function run<T>(action: () => Promise<ActionResult<T>>, onSuccess: (data: T) => void) {
     startTransition(async () => {
@@ -94,6 +110,27 @@ export function BookingsTable({
       () => generateOnboardingLink({ orgId, bookingId: booking.id }),
       ({ url }) => setLink({ guestName: booking.guests.full_name, url }),
     );
+  }
+
+  function emailLink(booking: BookingRow) {
+    run(
+      () => emailOnboardingLink({ orgId, bookingId: booking.id }),
+      ({ url, emailed, email }) => {
+        if (emailed) toast.success(`Link emailed to ${email}`);
+        else
+          setLink({
+            guestName: booking.guests.full_name,
+            url,
+            note: "Email isn't set up for this workspace yet, so send this link yourself.",
+          });
+      },
+    );
+  }
+
+  function start(booking: BookingRow, mode: "copy" | "email") {
+    if (booking.token_expires_at) setReplacing({ booking, mode });
+    else if (mode === "email") emailLink(booking);
+    else issueLink(booking);
   }
 
   if (!bookings.length) {
@@ -128,13 +165,14 @@ export function BookingsTable({
               </div>
               <BookingStatusBadge status={b.status} />
               <div className="flex items-center gap-1">
+                {canLink && b.guests.email && (
+                  <Button variant="outline" size="sm" disabled={isPending} onClick={() => start(b, "email")}>
+                    <Mail />
+                    Email link
+                  </Button>
+                )}
                 {canLink && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={isPending}
-                    onClick={() => (hasActiveLink ? setReplacing(b) : issueLink(b))}
-                  >
+                  <Button variant="outline" size="sm" disabled={isPending} onClick={() => start(b, "copy")}>
                     <Link2 />
                     {hasActiveLink ? "New link" : "Get link"}
                   </Button>
@@ -179,8 +217,11 @@ export function BookingsTable({
       <AlertDialog open={replacing !== null} onOpenChange={(open) => !open && setReplacing(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace {replacing?.guests.full_name}&apos;s link?</AlertDialogTitle>
+            <AlertDialogTitle>Replace {replacing?.booking.guests.full_name}&apos;s link?</AlertDialogTitle>
             <AlertDialogDescription>
+              {replacing?.mode === "email"
+                ? `We'll email a new link to ${replacing.booking.guests.email}. `
+                : ""}
               The link you sent before will stop working. Anything they already submitted is kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -188,11 +229,12 @@ export function BookingsTable({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (replacing) issueLink(replacing);
+                if (replacing?.mode === "email") emailLink(replacing.booking);
+                else if (replacing) issueLink(replacing.booking);
                 setReplacing(null);
               }}
             >
-              Create new link
+              {replacing?.mode === "email" ? "Email new link" : "Create new link"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -14,6 +14,7 @@ import { deleteOrganizationSchema } from "@/schemas/billing";
 import {
   createOrganizationSchema,
   updateOrganizationSchema,
+  updateGuestRemindersSchema,
   updateReleaseFormSchema,
 } from "@/schemas/organization";
 
@@ -106,5 +107,19 @@ export const deleteOrganization = orgAction(
     if (deleteError) throw deleteError;
 
     redirect("/dashboard");
+  },
+);
+
+export const updateGuestReminders = orgAction(
+  updateGuestRemindersSchema,
+  { roles: ["owner", "admin"] },
+  async (input, { supabase, org }) => {
+    const { error } = await supabase
+      .from("organizations")
+      .update({ guest_reminders_enabled: input.enabled })
+      .eq("id", org.id);
+    if (error) throw error;
+    refresh();
+    return ok(undefined);
   },
 );

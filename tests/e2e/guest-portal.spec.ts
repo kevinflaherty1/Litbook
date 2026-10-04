@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { bookGuestAndGetLink, PNG, signUpWithWorkspace, uniqueEmail } from "./helpers";
+import { bookGuestAndGetLink, getEmailLink, PNG, signUpWithWorkspace, uniqueEmail } from "./helpers";
 
 test("guest completes onboarding with only the link, then edits it", async ({ page, browser }) => {
   await signUpWithWorkspace(page, "Hana Host", uniqueEmail("host"), "Deep Dive Radio");
@@ -92,4 +92,40 @@ test("unknown and rotated links show a friendly error", async ({ page, browser }
   await page.reload();
   await expect(row.getByText(/^Opened /)).toBeVisible();
   await guestCtx.close();
+});
+
+test("host emails the link and the guest opens it from their inbox", async ({ page, browser }) => {
+  const slug = await signUpWithWorkspace(page, "Hana Host", uniqueEmail("host"), "Inbox Show");
+  const guestEmail = uniqueEmail("guest");
+
+  await page.getByRole("link", { name: "Episodes", exact: true }).click();
+  await page.getByRole("link", { name: "New episode" }).first().click();
+  await page.getByLabel("Title").fill("Mail Call");
+  await page.getByRole("button", { name: "Create episode" }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Mia Mailed");
+  await page.getByLabel("Email (optional)").fill(guestEmail);
+  await page.getByRole("button", { name: "Add and book" }).click();
+
+  const row = page
+    .getByRole("list", { name: "Booked guests" })
+    .getByRole("listitem")
+    .filter({ hasText: "Mia Mailed" });
+  await row.getByRole("button", { name: "Email link" }).click();
+  await expect(page.getByText(`Link emailed to ${guestEmail}`)).toBeVisible();
+  await expect(row.getByText(/^Emailed /)).toBeVisible();
+
+  const guestCtx = await browser.newContext();
+  const guest = await guestCtx.newPage();
+  await guest.goto(await getEmailLink(guestEmail, "/submit/"));
+  await expect(guest.getByRole("heading", { name: "Hi Mia, welcome to the show" })).toBeVisible();
+  await guestCtx.close();
+
+  // Reminders can be turned off per workspace.
+  await page.goto(`/${slug}/settings`);
+  const toggle = page.getByLabel("Remind guests who haven't sent their details");
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await expect(page.getByText("Guest reminders turned off")).toBeVisible();
+  await page.reload();
+  await expect(toggle).not.toBeChecked();
 });

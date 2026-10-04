@@ -50,6 +50,9 @@ Preview if you use a separate Supabase project for previews):
 | `STRIPE_PRICE_ID`                      | The $29/month recurring price                  |
 | `STRIPE_TRIAL_DAYS`                    | Optional, default `14`                         |
 
+`vercel.json` schedules `/api/cron/reminders` daily at 15:00 UTC; Vercel
+sends `CRON_SECRET` as a bearer token. Never set `MAILPIT_URL` in production.
+
 The site sends HSTS when `NEXT_PUBLIC_SITE_URL` is `https://`. Point a log
 drain at Axiom, Datadog or similar: server errors and webhook events are
 logged as one JSON object per line, with portal and invite tokens redacted.

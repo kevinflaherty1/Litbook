@@ -6,7 +6,15 @@ import { safeNextPath } from "@/lib/redirect";
 import { updateSession } from "@/lib/supabase/proxy";
 
 // Routes reachable without a session. Everything else redirects to /login.
-const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/submit", "/api/webhooks", "/api/health"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/signup",
+  "/auth",
+  "/submit",
+  "/api/webhooks",
+  "/api/health",
+  "/api/cron",
+];
 const PUBLIC_EXACT = ["/", "/pricing", "/robots.txt"];
 // Signed-in users skip these and go to `next` (or their dashboard).
 const AUTH_PAGES = ["/login", "/signup"];

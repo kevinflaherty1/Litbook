@@ -24,8 +24,8 @@ cp .env.example .env.local # then paste the publishable and secret keys printed 
 pnpm dev                   # http://localhost:3000
 ```
 
-Sign-in emails don't leave your machine. Open Mailpit at
-http://127.0.0.1:54324 to click your magic link.
+Emails don't leave your machine. Sign-in links, invites, guest links and
+reminders all land in Mailpit at http://127.0.0.1:54324.
 
 | Command                   | What it does                                         |
 | ------------------------- | ---------------------------------------------------- |
@@ -43,9 +43,12 @@ http://127.0.0.1:54324 to click your magic link.
 - **Google sign-in:** enable `[auth.external.google]` in `supabase/config.toml`,
   set the `SUPABASE_AUTH_EXTERNAL_GOOGLE_*` variables, and set
   `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`.
-- **Emails:** set `RESEND_API_KEY` for team invites and "guest submitted"
-  notifications. Without it, emails are logged and invite links are shown to
-  the inviter to share.
+- **Emails:** set `RESEND_API_KEY` in production for invites, guest links,
+  reminders and "guest submitted" notifications. Locally, `MAILPIT_URL`
+  delivers them to Mailpit instead.
+- **Guest reminders:** set `CRON_SECRET`, then call
+  `curl -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/cron/reminders`
+  (Vercel Cron does this daily in production).
 - **Billing:** set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
   `STRIPE_PRICE_ID` (a $29/month recurring price). Without them there's no
   paywall. Forward webhooks locally with

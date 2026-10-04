@@ -30,8 +30,11 @@ export type Database = {
           episode_id: string;
           guest_id: string;
           id: string;
+          last_reminder_at: string | null;
+          link_emailed_at: string | null;
           organization_id: string;
           ready_at: string | null;
+          reminder_count: number;
           status: Database["public"]["Enums"]["onboarding_status"];
           submitted_at: string | null;
           token_expires_at: string | null;
@@ -45,8 +48,11 @@ export type Database = {
           episode_id: string;
           guest_id: string;
           id?: string;
+          last_reminder_at?: string | null;
+          link_emailed_at?: string | null;
           organization_id: string;
           ready_at?: string | null;
+          reminder_count?: number;
           status?: Database["public"]["Enums"]["onboarding_status"];
           submitted_at?: string | null;
           token_expires_at?: string | null;
@@ -60,8 +66,11 @@ export type Database = {
           episode_id?: string;
           guest_id?: string;
           id?: string;
+          last_reminder_at?: string | null;
+          link_emailed_at?: string | null;
           organization_id?: string;
           ready_at?: string | null;
+          reminder_count?: number;
           status?: Database["public"]["Enums"]["onboarding_status"];
           submitted_at?: string | null;
           token_expires_at?: string | null;
@@ -299,6 +308,7 @@ export type Database = {
           created_at: string;
           created_by: string | null;
           current_period_end: string | null;
+          guest_reminders_enabled: boolean;
           id: string;
           logo_url: string | null;
           name: string;
@@ -317,6 +327,7 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           current_period_end?: string | null;
+          guest_reminders_enabled?: boolean;
           id?: string;
           logo_url?: string | null;
           name: string;
@@ -335,6 +346,7 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           current_period_end?: string | null;
+          guest_reminders_enabled?: boolean;
           id?: string;
           logo_url?: string | null;
           name?: string;
@@ -520,6 +532,18 @@ export type Database = {
         Args: { p_key: string; p_limit: number; p_window_seconds: number };
         Returns: boolean;
       };
+      claim_onboarding_reminders: {
+        Args: { p_gap?: string; p_limit?: number; p_max?: number };
+        Returns: {
+          episode_guest_id: string;
+          episode_title: string;
+          guest_email: string;
+          guest_name: string;
+          organization_name: string;
+          recording_at: string;
+          reminder_number: number;
+        }[];
+      };
       create_invitation: {
         Args: { p_email: string; p_org: string; p_role?: Database["public"]["Enums"]["org_role"] };
         Returns: string;
@@ -532,6 +556,7 @@ export type Database = {
           created_at: string;
           created_by: string | null;
           current_period_end: string | null;
+          guest_reminders_enabled: boolean;
           id: string;
           logo_url: string | null;
           name: string;
@@ -560,9 +585,16 @@ export type Database = {
       };
       hash_token: { Args: { p_token: string }; Returns: string };
       is_org_member: { Args: { p_org: string }; Returns: boolean };
-      issue_onboarding_token: { Args: { p_episode_guest_id: string; p_ttl?: string }; Returns: string };
+      issue_onboarding_token: {
+        Args: { p_emailed?: boolean; p_episode_guest_id: string; p_ttl?: string };
+        Returns: string;
+      };
       org_has_active_subscription: { Args: { p_org: string }; Returns: boolean };
       record_onboarding_visit: { Args: { p_token: string }; Returns: undefined };
+      set_onboarding_token: {
+        Args: { p_episode_guest_id: string; p_token: string; p_ttl?: string };
+        Returns: boolean;
+      };
       shares_org_with: { Args: { p_user: string }; Returns: boolean };
       storage_object_org_id: { Args: { p_name: string }; Returns: string };
       submit_onboarding: {

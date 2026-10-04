@@ -4,10 +4,13 @@ import { refresh } from "next/cache";
 
 import { requireActiveSubscription } from "@/features/billing/gate";
 import { fail, ok } from "@/lib/action-result";
+import { sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { isPgError, PG } from "@/lib/errors";
 import { orgAction } from "@/lib/safe-action";
 import { removeStoragePrefix } from "@/lib/storage";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { onboardingLinkEmail } from "@/features/bookings/guest-emails";
 import type { createClient } from "@/lib/supabase/server";
 import {
   bookExistingGuestSchema,
@@ -212,3 +215,57 @@ export const updateSubmissionContent = orgAction(
     return ok(undefined);
   },
 );
+
+/**
+ * Issues a fresh link and emails it to the guest (replies go to the host).
+ * Only a link that was actually delivered is marked as emailed, which is
+ * what makes it eligible for automatic reminders. If email isn't configured
+ * the link is returned to show instead.
+ */
+export const emailOnboardingLink = orgAction(bookingRefSchema, {}, async (input, { supabase, org, user }) => {
+  const paywall = await requireActiveSubscription(supabase, org.id);
+  if (paywall) return paywall;
+
+  const { data: booking, error: bookingError } = await supabase
+    .from("episode_guests")
+    .select("status, guests!inner(full_name, email), episodes!inner(title), organizations!inner(name)")
+    .eq("organization_id", org.id)
+    .eq("id", input.bookingId)
+    .maybeSingle();
+  if (bookingError) throw bookingError;
+  if (!booking) return fail("That booking no longer exists.");
+  if (!booking.guests.email) return fail("Add an email address for this guest first.");
+  if (booking.status !== "pending" && booking.status !== "assets_submitted") {
+    return fail("This booking isn't accepting guest details right now.");
+  }
+
+  const { data: token, error } = await supabase.rpc("issue_onboarding_token", {
+    p_episode_guest_id: input.bookingId,
+  });
+  if (error) throw error;
+  const url = new URL(`/submit/${token}`, env.NEXT_PUBLIC_SITE_URL).toString();
+
+  const { sent } = await sendEmail({
+    to: booking.guests.email,
+    replyTo: user.email ?? undefined,
+    ...onboardingLinkEmail({
+      organizationName: booking.organizations.name,
+      episodeTitle: booking.episodes.title,
+      guestName: booking.guests.full_name,
+      url,
+    }),
+  });
+
+  if (sent) {
+    // Tracking columns aren't writable by signed-in users; membership was checked above.
+    const { error: markError } = await createAdminClient()
+      .from("episode_guests")
+      .update({ link_emailed_at: new Date().toISOString() })
+      .eq("organization_id", org.id)
+      .eq("id", input.bookingId);
+    if (markError) throw markError;
+  }
+
+  refresh();
+  return ok({ url, emailed: sent, email: booking.guests.email });
+});

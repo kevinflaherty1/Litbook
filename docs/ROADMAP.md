@@ -129,12 +129,26 @@ invited teammate can.
 - Deployment: [docs/DEPLOYMENT.md](DEPLOYMENT.md), and a `Deploy database`
   workflow that runs `supabase db push` after CI passes on `main`.
 
+## Phase 7: Emailed links and guest reminders ✅
+
+- "Email link" on a booking issues a fresh link and emails it to the guest,
+  with replies going to the host. Without email configured, the host gets
+  the link to send themselves.
+- Automatic reminders (`/api/cron/reminders`, daily via Vercel Cron, behind
+  `CRON_SECRET`): up to two, three days apart, only for still-pending
+  bookings whose link Litbook emailed. Workspaces can turn them off.
+- Raw tokens are still never stored. `claim_onboarding_reminders()` claims
+  due bookings with `SKIP LOCKED`; each reminder carries a server-generated
+  link that `set_onboarding_token()` applies only after the email was
+  delivered, so a failed send never breaks a working link.
+- Local development and CI deliver all email (invites, links, reminders,
+  host notifications) to Mailpit, so E2E tests read real emails.
+
 ## Post-MVP backlog
 
 - Calendar booking (guest picks a recording slot), plus Google Calendar and
   Zoom or Riverside links.
 - Custom form fields per org, and custom branding and domain for the portal.
-- Automated reminders to guests who haven't submitted.
 - Multiple asset types: intro audio, company logos, pre-interview questionnaire.
 - Plan tiers: seats, episodes per month.
 - Account-deletion flow and data export (GDPR).

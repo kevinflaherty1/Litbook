@@ -66,6 +66,7 @@ jobs:
             echo "NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321"
             echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
             echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
+            echo "MAILPIT_URL=http://127.0.0.1:54324"
           } > .env.local
 
       - name: Integration tests (webhook, storage)

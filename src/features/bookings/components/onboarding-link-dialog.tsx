@@ -19,7 +19,7 @@ export function OnboardingLinkDialog({
   link,
   onOpenChange,
 }: {
-  link: { guestName: string; url: string } | null;
+  link: { guestName: string; url: string; note?: string } | null;
   onOpenChange: (open: boolean) => void;
 }) {
   return (
@@ -30,6 +30,7 @@ export function OnboardingLinkDialog({
             <Link2 className="size-5" /> Onboarding link for {link?.guestName}
           </DialogTitle>
           <DialogDescription>
+            {link?.note && <span className="mb-2 block font-medium text-foreground">{link.note}</span>}
             Send this to your guest. They can add their bio, headshot and socials and sign your release, no
             account needed. For security, the link is shown only once. You can create a new one at any time,
             which turns this one off.

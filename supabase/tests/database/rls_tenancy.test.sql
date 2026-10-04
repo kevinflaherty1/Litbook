@@ -1,7 +1,7 @@
 -- Tenancy & privilege tests. Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(65);
+select plan(74);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -297,6 +297,51 @@ select is_empty($$select p.proname from pg_proc p join pg_namespace n on n.oid =
 select pg_temp.login('a0000000-0000-0000-0000-000000000000', 'alice@example.com');
 set local role authenticated;
 select throws_ok('select count(*) from public.stripe_events', '42501', null, 'signed-in users cannot read stripe events');
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Phase 7: emailed links and reminders
+-- ---------------------------------------------------------------------------
+insert into public.guests (id, organization_id, full_name, email)
+  values ('90a30000-0000-0000-0000-000000000000', '0a000000-0000-0000-0000-000000000000', 'Guest A3', 'a3@example.com');
+insert into public.episode_guests (id, organization_id, episode_id, guest_id)
+  values ('ea300000-0000-0000-0000-000000000000', '0a000000-0000-0000-0000-000000000000',
+          'e0a00000-0000-0000-0000-000000000000', '90a30000-0000-0000-0000-000000000000');
+update public.organizations set guest_reminders_enabled = true where id = '0a000000-0000-0000-0000-000000000000';
+
+select pg_temp.login('c0000000-0000-0000-0000-000000000000', 'carol@example.com');
+set local role authenticated;
+select lives_ok($$select public.issue_onboarding_token('ea300000-0000-0000-0000-000000000000', interval '30 days', true)$$,
+                'members can issue an emailed link');
+select throws_ok($$select * from public.claim_onboarding_reminders()$$, '42501', null,
+                 'signed-in users cannot claim reminders');
+reset role;
+
+set local role service_role;
+select is_empty($$select * from public.claim_onboarding_reminders()$$, 'a freshly emailed link is not due a reminder');
+reset role;
+update public.episode_guests set link_emailed_at = now() - interval '4 days'
+  where id = 'ea300000-0000-0000-0000-000000000000';
+set local role service_role;
+select results_eq($$select guest_email, reminder_number from public.claim_onboarding_reminders()$$,
+                  $$values ('a3@example.com'::text, 1)$$, 'a link emailed 4 days ago gets its first reminder');
+select is_empty($$select * from public.claim_onboarding_reminders()$$, 'a claimed reminder is not sent twice');
+select is(public.set_onboarding_token('ea300000-0000-0000-0000-000000000000', 'reminder-token-rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr'),
+          true, 'the emailed reminder token is applied');
+select isnt(public.get_onboarding_context('reminder-token-rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr'), null,
+            'the link in the reminder works');
+reset role;
+
+update public.episode_guests set last_reminder_at = now() - interval '4 days', reminder_count = 2
+  where id = 'ea300000-0000-0000-0000-000000000000';
+set local role service_role;
+select is_empty($$select * from public.claim_onboarding_reminders()$$, 'no more than two reminders');
+reset role;
+
+update public.episode_guests set reminder_count = 0 where id = 'ea300000-0000-0000-0000-000000000000';
+update public.organizations set guest_reminders_enabled = false where id = '0a000000-0000-0000-0000-000000000000';
+set local role service_role;
+select is_empty($$select * from public.claim_onboarding_reminders()$$, 'workspaces can turn reminders off');
 reset role;
 
 select * from finish();

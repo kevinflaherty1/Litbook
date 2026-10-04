@@ -6,22 +6,23 @@ export function uniqueEmail(name: string) {
   return `${name}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
 }
 
-/** Polls the local Mailpit inbox for the newest magic link sent to `email`. */
-export async function getMagicLink(email: string): Promise<string> {
+/** Polls the local Mailpit inbox for the newest link to `path` in an email sent to `email`. */
+export async function getEmailLink(email: string, path: string): Promise<string> {
+  const pattern = new RegExp(`href="([^"]*${path.replace(/\//g, "\\/")}[^"]*)"`);
   for (let attempt = 0; attempt < 30; attempt++) {
     const res = await fetch(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`);
     const { messages } = (await res.json()) as { messages: { ID: string }[] };
-    if (messages?.length) {
-      const msg = (await (await fetch(`${MAILPIT_URL}/api/v1/message/${messages[0].ID}`)).json()) as {
-        HTML: string;
-      };
-      const href = msg.HTML.match(/href="([^"]*\/auth\/confirm[^"]*)"/)?.[1];
+    for (const m of messages ?? []) {
+      const msg = (await (await fetch(`${MAILPIT_URL}/api/v1/message/${m.ID}`)).json()) as { HTML: string };
+      const href = msg.HTML.match(pattern)?.[1];
       if (href) return href.replace(/&amp;/g, "&");
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error(`No magic link email for ${email}`);
+  throw new Error(`No email to ${email} with a ${path} link`);
 }
+
+export const getMagicLink = (email: string) => getEmailLink(email, "/auth/confirm");
 
 /** Requests a magic link on the current login/signup page and follows it. */
 export async function completeMagicLink(page: Page, email: string) {

@@ -9,7 +9,7 @@ import type { OnboardingStatus } from "@/schemas/booking";
 
 // token_hash is never selected: the app only needs to know whether a link exists.
 const BOOKING_COLUMNS =
-  "id, status, token_expires_at, token_last_used_at, submitted_at, ready_at, created_at" as const;
+  "id, status, token_expires_at, token_last_used_at, submitted_at, ready_at, created_at, link_emailed_at, reminder_count" as const;
 
 /** Episodes, unscheduled first, then by recording date (newest first). */
 export async function listEpisodes(orgId: string, filter: { status?: EpisodeStatus; page: number }) {

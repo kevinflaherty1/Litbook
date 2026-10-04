@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrganizationSettingsForm } from "@/features/organizations/components/organization-settings-form";
 import { DeleteOrganizationForm } from "@/features/organizations/components/delete-organization-form";
+import { GuestRemindersToggle } from "@/features/organizations/components/guest-reminders-toggle";
 import { ReleaseFormEditor } from "@/features/organizations/components/release-form-editor";
 import { requireOrgMembership } from "@/features/organizations/queries";
 import { ProfileForm } from "@/features/team/components/profile-form";
@@ -44,6 +45,15 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
             version={org.release_form_version}
             disabled={!canManage}
           />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Guest reminders</CardTitle>
+          <CardDescription>Automatic follow-ups, so you don&apos;t have to chase.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GuestRemindersToggle orgId={org.id} enabled={org.guest_reminders_enabled} disabled={!canManage} />
         </CardContent>
       </Card>
       <Card>
