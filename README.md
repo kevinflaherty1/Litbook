@@ -7,6 +7,7 @@ back-and-forth.
 
 - [Architecture and project structure](docs/ARCHITECTURE.md)
 - [Implementation roadmap](docs/ROADMAP.md)
+- [Deploying to Vercel + Supabase](docs/DEPLOYMENT.md)
 - [Database migrations](supabase/migrations/)
 
 **Stack:** Next.js 16 (App Router, TypeScript), Tailwind v4 + shadcn/ui,

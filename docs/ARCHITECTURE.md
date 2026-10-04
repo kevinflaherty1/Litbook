@@ -101,8 +101,9 @@ litbook/
 │       └── rls_tenancy.test.sql         # pgTAP: tenancy, privileges, RPCs (pnpm db:test)
 │
 ├── src/
-│   ├── proxy.ts                         # Next 16 "proxy" (formerly middleware): refresh
-│   │                                    # session cookie, redirect signed-out users
+│   ├── proxy.ts                         # Next 16 "proxy" (formerly middleware): CSP nonce,
+│   │                                    # refresh session cookie, redirect signed-out users
+│   ├── instrumentation.ts               # onRequestError → structured JSON logs
 │   ├── app/
 │   │   ├── layout.tsx                   # <html>, fonts, <Toaster/>
 │   │   ├── page.tsx                     # landing page
@@ -177,7 +178,9 @@ litbook/
 │   ├── integration/                     # Vitest against local Supabase: webhook, storage
 │   └── e2e/                             # Playwright against local Supabase + Mailpit
 │
-├── .github/workflows/ci.yml
+├── .github/workflows/
+│   ├── ci.yml                           # checks, pgTAP, integration, E2E
+│   └── deploy-database.yml              # supabase db push after CI passes on main
 ├── .env.example
 ├── components.json                      # shadcn config
 └── playwright.config.ts / vitest.config.mts

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { redactPath } from "@/lib/redact";
 import { safeNextPath } from "@/lib/redirect";
 
 describe("safeNextPath", () => {
@@ -25,5 +26,13 @@ describe("safeNextPath", () => {
     expect(safeNextPath("http://localhost:3000/invite/abc", origin)).toBe("/invite/abc");
     expect(safeNextPath("https://evil.com/invite/abc", origin)).toBe("/dashboard");
     expect(safeNextPath("http://localhost:3000//evil.com", origin)).toBe("/dashboard");
+  });
+});
+
+describe("redactPath", () => {
+  it("hides portal and invite tokens and drops query strings", () => {
+    expect(redactPath("/submit/abcDEF123_-xyz/done")).toBe("/submit/[token]/done");
+    expect(redactPath("/invite/tok123?x=1")).toBe("/invite/[token]");
+    expect(redactPath("/my-show/episodes?status=draft")).toBe("/my-show/episodes");
   });
 });

@@ -113,16 +113,21 @@ invited teammate can.
   removes stored files, then deletes the org. Deleting episodes, guests and
   bookings now removes their files too.
 
-## Phase 6: Hardening and launch (2–3 days)
+## Phase 6: Hardening and launch ✅
 
-- Playwright E2E: sign up, create an org, book a guest, guest submits, host
-  downloads.
-- Error and observability: Sentry, and structured logs in webhooks and the
-  portal.
-- Security pass: CSP headers, `server-only` audit, Supabase advisors, RLS test
-  coverage for every table.
-- Deploy to Vercel with Supabase prod. Run migrations through CI
-  (`supabase db push`).
+- Playwright E2E across the whole journey: sign up, create an org, book a
+  guest, guest submits on a phone, host reviews, exports and downloads,
+  billing-off state, workspace deletion, and cross-tenant 404s.
+- Observability: `instrumentation.ts` logs every server error as one JSON
+  line (tokens redacted), webhooks log structured events, and `/api/health`
+  checks the database. Sentry can be plugged into `onRequestError`.
+- Security: a nonce-based CSP with `strict-dynamic` on every page (no
+  violations under E2E), `nosniff`, `X-Frame-Options`, a Permissions-Policy,
+  HSTS on https, no `X-Powered-By`, and `robots.txt`. `server-only` audit done.
+  pgTAP checks that every table has RLS, and that `anon` has no table or
+  function privileges, for every future migration too.
+- Deployment: [docs/DEPLOYMENT.md](DEPLOYMENT.md), and a `Deploy database`
+  workflow that runs `supabase db push` after CI passes on `main`.
 
 ## Post-MVP backlog
 

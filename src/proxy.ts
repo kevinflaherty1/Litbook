@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { buildCsp, generateNonce } from "@/lib/csp";
+import { env } from "@/lib/env";
 import { safeNextPath } from "@/lib/redirect";
 import { updateSession } from "@/lib/supabase/proxy";
 
 // Routes reachable without a session. Everything else redirects to /login.
-const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/submit", "/api/webhooks"];
-const PUBLIC_EXACT = ["/", "/pricing"];
+const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/submit", "/api/webhooks", "/api/health"];
+const PUBLIC_EXACT = ["/", "/pricing", "/robots.txt"];
 // Signed-in users skip these and go to `next` (or their dashboard).
 const AUTH_PAGES = ["/login", "/signup"];
 
@@ -14,6 +16,22 @@ function matches(pathname: string, prefixes: string[]) {
 }
 
 export async function proxy(request: NextRequest) {
+  // A fresh nonce per request: Next.js reads it from the request's CSP header
+  // and applies it to its own scripts; the root layout reads x-nonce.
+  const csp = buildCsp({
+    nonce: generateNonce(),
+    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL,
+    isDev: process.env.NODE_ENV === "development",
+  });
+  request.headers.set("x-nonce", csp.match(/'nonce-([^']+)'/)![1]);
+  request.headers.set("Content-Security-Policy", csp);
+
+  const result = await routeRequest(request);
+  result.headers.set("Content-Security-Policy", csp);
+  return result;
+}
+
+async function routeRequest(request: NextRequest) {
   const { response, isAuthenticated } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
 

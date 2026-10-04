@@ -1,7 +1,7 @@
 -- Tenancy & privilege tests. Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(61);
+select plan(65);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -281,6 +281,22 @@ update public.organizations set subscription_status = 'active', current_period_e
 set local role authenticated;
 select is(public.org_has_active_subscription('0a000000-0000-0000-0000-000000000000'), true,
           'a just-lapsed period still counts during the grace window');
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Coverage: every table, now and in future migrations
+-- ---------------------------------------------------------------------------
+select is_empty($$select tablename from pg_tables where schemaname = 'public' and not rowsecurity$$,
+                'every public table has row level security enabled');
+select is_empty($$select table_name || ':' || privilege_type from information_schema.role_table_grants
+                  where table_schema = 'public' and grantee = 'anon'$$,
+                'anon has no privileges on any public table');
+select is_empty($$select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')$$,
+                'anon cannot execute any public function');
+select pg_temp.login('a0000000-0000-0000-0000-000000000000', 'alice@example.com');
+set local role authenticated;
+select throws_ok('select count(*) from public.stripe_events', '42501', null, 'signed-in users cannot read stripe events');
 reset role;
 
 select * from finish();
