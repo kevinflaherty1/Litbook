@@ -1,0 +1,85 @@
+import { z } from "zod";
+
+// Keep in sync with organizations_slug_not_reserved in
+// supabase/migrations/20261004010000_reserved_slugs_and_invitation_preview.sql
+export const RESERVED_SLUGS = new Set([
+  "about",
+  "account",
+  "admin",
+  "api",
+  "app",
+  "auth",
+  "billing",
+  "blog",
+  "dashboard",
+  "docs",
+  "help",
+  "invite",
+  "login",
+  "logout",
+  "new",
+  "onboarding",
+  "pricing",
+  "privacy",
+  "settings",
+  "signup",
+  "static",
+  "submit",
+  "support",
+  "terms",
+  "www",
+]);
+
+// Mirrors the DB check: 3–48 chars, lowercase letters, digits and inner hyphens.
+const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/;
+
+export const orgNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter a name for your organization.")
+  .max(120, "Keep it under 120 characters.");
+
+export const orgSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Use at least 3 characters.")
+  .max(48, "Use at most 48 characters.")
+  .regex(SLUG_PATTERN, "Use lowercase letters, numbers and hyphens (not at the start or end).")
+  .refine((slug) => !RESERVED_SLUGS.has(slug), "That URL is reserved. Try another.");
+
+export const createOrganizationSchema = z.object({
+  name: orgNameSchema,
+  slug: orgSlugSchema,
+});
+
+export const updateOrganizationSchema = z.object({
+  orgId: z.uuid(),
+  name: orgNameSchema,
+  slug: orgSlugSchema,
+});
+
+export const updateReleaseFormSchema = z.object({
+  orgId: z.uuid(),
+  releaseFormText: z
+    .string()
+    .trim()
+    .min(1, "The release form can't be empty.")
+    .max(20000, "Keep the release form under 20,000 characters."),
+});
+
+/** "The Daily Grind Podcast!" → "the-daily-grind-podcast" */
+export function slugify(input: string): string {
+  return input
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+    .replace(/-+$/g, "");
+}
+
+export type CreateOrganizationInput = z.input<typeof createOrganizationSchema>;
+export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
+export type UpdateReleaseFormInput = z.input<typeof updateReleaseFormSchema>;

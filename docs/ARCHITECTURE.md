@@ -6,14 +6,14 @@ headshot, social links and a signed release form, with no email back-and-forth.
 
 ## Stack
 
-| Concern    | Choice                                                         |
-| ---------- | -------------------------------------------------------------- |
+| Concern    | Choice                                                              |
+| ---------- | ------------------------------------------------------------------- |
 | Framework  | Next.js (App Router, Server Components, Server Actions), TypeScript |
-| UI         | Tailwind CSS + shadcn/ui                                       |
-| DB / Auth  | Supabase Postgres + Supabase Auth, RLS keyed on `organization_id` |
-| Storage    | Supabase Storage, private bucket, signed upload/download URLs  |
-| Validation | Zod schemas shared by the client forms and the server actions  |
-| Billing    | Stripe Checkout + Customer Portal + webhooks                   |
+| UI         | Tailwind CSS + shadcn/ui                                            |
+| DB / Auth  | Supabase Postgres + Supabase Auth, RLS keyed on `organization_id`   |
+| Storage    | Supabase Storage, private bucket, signed upload/download URLs       |
+| Validation | Zod schemas shared by the client forms and the server actions       |
+| Billing    | Stripe Checkout + Customer Portal + webhooks                        |
 
 ## Data model
 
@@ -33,13 +33,13 @@ organizations 1─N organization_members N─1 profiles
                  submissions     (bio, socials, headshot_path, signed release)
 ```
 
-* **`guests` is an org-level directory**, so one person can appear on many
+- **`guests` is an org-level directory**, so one person can appear on many
   episodes. The **booking** (`episode_guests`) owns the onboarding link and its
   status (`pending → assets_submitted → ready`, or `cancelled`).
-* **Composite foreign keys** `(organization_id, id)` mean a booking can't link
+- **Composite foreign keys** `(organization_id, id)` mean a booking can't link
   one tenant's episode to another tenant's guest, even if a bug lets the wrong
   IDs through.
-* **Signed release evidence** (signer name, timestamp, IP, user agent, form
+- **Signed release evidence** (signer name, timestamp, IP, user agent, form
   version, and a snapshot of the exact text) is stored on the submission and
   can't be changed by any authenticated user.
 
@@ -47,11 +47,11 @@ Migration: [`supabase/migrations/20261004000000_initial_schema.sql`](../supabase
 
 ## Security model
 
-| Caller          | What it can do                                                                 |
-| --------------- | ------------------------------------------------------------------------------ |
-| `anon`          | **Nothing.** No table grants, no function grants.                             |
+| Caller          | What it can do                                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `anon`          | **Nothing.** No table grants, no function grants.                                                                                  |
 | `authenticated` | Rows where `is_org_member(organization_id)`. Billing columns, tokens, and release evidence are write-protected with column grants. |
-| `service_role`  | Server-only: Stripe webhook, guest portal RPCs, signed upload URLs.            |
+| `service_role`  | Server-only: Stripe webhook, guest portal RPCs, signed upload URLs.                                                                |
 
 **Guest portal flow (`/submit/[token]`):**
 
@@ -75,12 +75,12 @@ Migration: [`supabase/migrations/20261004000000_initial_schema.sql`](../supabase
 
 **Rules that keep tenancy safe:**
 
-* Never trust a client-supplied `organization_id`. Server actions resolve the
+- Never trust a client-supplied `organization_id`. Server actions resolve the
   active org from the route segment (`/[orgSlug]/…`) and membership, and RLS
   checks it again.
-* `lib/supabase/admin.ts` (service role) is imported only from `server-only`
+- `lib/supabase/admin.ts` (service role) is imported only from `server-only`
   modules: the portal, webhooks, and upload signing.
-* The billing gate (`org_has_active_subscription`) runs in server actions that
+- The billing gate (`org_has_active_subscription`) runs in server actions that
   **create** things, never in RLS. A lapsed customer can still read and export
   their data.
 
@@ -89,123 +89,96 @@ Migration: [`supabase/migrations/20261004000000_initial_schema.sql`](../supabase
 ```
 litbook/
 ├── supabase/
-│   ├── config.toml
-│   ├── migrations/
-│   │   └── 20261004000000_initial_schema.sql
-│   ├── seed.sql                         # local dev fixtures
-│   └── tests/                           # pgTAP RLS tests (supabase test db)
-│       └── rls_tenancy.test.sql
+│   ├── config.toml                      # local stack; auth URLs, email templates, Google
+│   ├── migrations/                      # never edit an applied migration; add a new one
+│   ├── templates/                       # magic-link / confirmation emails → /auth/confirm
+│   └── tests/database/
+│       └── rls_tenancy.test.sql         # pgTAP: tenancy, privileges, RPCs (pnpm db:test)
 │
 ├── src/
-│   ├── middleware.ts                    # refresh Supabase session; guard (app) routes
-│   │
+│   ├── proxy.ts                         # Next 16 "proxy" (formerly middleware): refresh
+│   │                                    # session cookie, redirect signed-out users
 │   ├── app/
 │   │   ├── layout.tsx                   # <html>, fonts, <Toaster/>
-│   │   ├── globals.css
-│   │   ├── (marketing)/                 # public site
-│   │   │   ├── page.tsx                 # landing
-│   │   │   └── pricing/page.tsx
+│   │   ├── page.tsx                     # landing page
 │   │   ├── (auth)/
 │   │   │   ├── login/page.tsx
 │   │   │   ├── signup/page.tsx
-│   │   │   └── auth/callback/route.ts   # OAuth / magic-link code exchange
-│   │   ├── invite/[token]/page.tsx      # accept team invitation
-│   │   ├── onboarding/page.tsx          # first org creation
+│   │   │   └── auth/
+│   │   │       ├── callback/route.ts    # OAuth (PKCE ?code=) exchange
+│   │   │       └── confirm/route.ts     # magic link (token_hash) verification
+│   │   ├── dashboard/page.tsx           # post-login redirect → first org or /onboarding
+│   │   ├── onboarding/page.tsx          # create a workspace
+│   │   ├── invite/[token]/page.tsx      # preview + accept team invitation
 │   │   │
 │   │   ├── (app)/[orgSlug]/             # authenticated, tenant-scoped
-│   │   │   ├── layout.tsx               # resolves org + membership, sidebar, org switcher
-│   │   │   ├── page.tsx                 # dashboard: upcoming recordings, status counts
-│   │   │   ├── episodes/
-│   │   │   │   ├── page.tsx             # list + filters
-│   │   │   │   ├── new/page.tsx
-│   │   │   │   └── [episodeId]/
-│   │   │   │       ├── page.tsx         # detail; book guests; copy onboarding links
-│   │   │   │       └── edit/page.tsx
-│   │   │   ├── guests/
-│   │   │   │   ├── page.tsx             # guest directory
-│   │   │   │   └── [guestId]/page.tsx   # Asset Vault: bios, socials, headshot download
-│   │   │   └── settings/
-│   │   │       ├── page.tsx             # org profile, release form text
-│   │   │       ├── team/page.tsx        # members, roles, invitations
-│   │   │       └── billing/page.tsx     # plan, Checkout / Customer Portal
+│   │   │   ├── layout.tsx               # resolves org + membership (404 if not a member)
+│   │   │   ├── page.tsx                 # overview / getting-started checklist
+│   │   │   ├── settings/page.tsx        # workspace, release form, your profile
+│   │   │   ├── settings/team/page.tsx   # members, roles, invitations
+│   │   │   ├── episodes/…               # (Phase 2)
+│   │   │   ├── guests/…                 # (Phase 2/4) directory + Asset Vault
+│   │   │   └── settings/billing/…       # (Phase 5)
 │   │   │
-│   │   ├── submit/[token]/              # PUBLIC guest portal (no auth)
-│   │   │   ├── page.tsx
-│   │   │   ├── submitted/page.tsx
-│   │   │   └── actions.ts               # createHeadshotUploadUrl, submitOnboarding
-│   │   │
-│   │   └── api/
-│   │       └── webhooks/stripe/route.ts # signature verify → idempotent upsert
+│   │   ├── submit/[token]/              # (Phase 3) PUBLIC guest portal
+│   │   └── api/webhooks/stripe/         # (Phase 5)
 │   │
 │   ├── features/                        # domain modules: actions, queries, UI
-│   │   ├── organizations/
-│   │   │   ├── actions.ts               # createOrganization, updateOrganization
-│   │   │   ├── queries.ts               # getOrgBySlug, requireMembership
-│   │   │   └── components/
-│   │   ├── team/
-│   │   │   ├── actions.ts               # inviteMember, changeRole, removeMember
-│   │   │   └── components/
-│   │   ├── episodes/
-│   │   │   ├── actions.ts
-│   │   │   ├── queries.ts
-│   │   │   └── components/              # EpisodeForm, EpisodeTable, StatusBadge
-│   │   ├── guests/
-│   │   │   ├── actions.ts               # createGuest, bookGuest, issueLink, markReady
-│   │   │   ├── queries.ts
-│   │   │   └── components/              # BookingRow, CopyLinkButton, AssetVaultCard
-│   │   ├── portal/
-│   │   │   └── components/              # OnboardingForm, HeadshotDropzone, ReleaseSignature
-│   │   └── billing/
-│   │       ├── actions.ts               # createCheckoutSession, createPortalSession
-│   │       ├── plans.ts                 # price IDs → plan limits
-│   │       └── webhook-handlers.ts
+│   │   ├── auth/                        # magic link, OAuth, sign out; AuthForm
+│   │   ├── organizations/               # create/update org, release form; requireOrgMembership
+│   │   ├── team/                        # invite, accept, roles, remove/leave, profile
+│   │   ├── episodes/ guests/ portal/ billing/   # (Phases 2–5)
 │   │
 │   ├── components/
-│   │   ├── ui/                          # shadcn/ui (generated)
-│   │   └── shared/                      # AppSidebar, OrgSwitcher, EmptyState, CopyButton
+│   │   ├── ui/                          # shadcn/ui primitives (Radix + CVA)
+│   │   └── shared/                      # sidebar, org switcher, user menu, Field, CopyButton…
 │   │
 │   ├── lib/
 │   │   ├── supabase/
-│   │   │   ├── server.ts                # createServerClient (cookies) — RLS as user
-│   │   │   ├── client.ts                # createBrowserClient
-│   │   │   ├── admin.ts                 # service role — `import "server-only"`
-│   │   │   └── middleware.ts            # updateSession helper
-│   │   ├── stripe.ts
-│   │   ├── env.ts                       # Zod-validated process.env
-│   │   ├── safe-action.ts               # action wrapper: auth → Zod → typed result
-│   │   ├── storage.ts                   # key builders, signed URL helpers
-│   │   └── utils.ts                     # cn(), formatters
+│   │   │   ├── server.ts                # cookie-bound client: RLS as the signed-in user
+│   │   │   ├── client.ts                # browser client
+│   │   │   ├── admin.ts                 # service role (server-only) — portal/webhooks only
+│   │   │   └── proxy.ts                 # updateSession() used by src/proxy.ts
+│   │   ├── auth.ts                      # getCurrentUser / requireUser (per-request cached)
+│   │   ├── safe-action.ts               # authedAction / orgAction wrappers (server-only)
+│   │   ├── action-result.ts             # ActionResult type, ok() / fail() (client-safe)
+│   │   ├── forms.ts                     # map ActionResult errors onto react-hook-form
+│   │   ├── env.ts / env.server.ts       # Zod-validated public / server-only env
+│   │   ├── email.ts                     # Resend (logs instead when unconfigured)
+│   │   ├── redirect.ts                  # safeNextPath(): open-redirect guard
+│   │   └── errors.ts                    # Postgres SQLSTATE helpers
 │   │
 │   ├── schemas/                         # Zod, shared by client + server
-│   │   ├── organization.ts
-│   │   ├── episode.ts
-│   │   ├── guest.ts
-│   │   └── submission.ts                # social link URL rules, bio limits mirror DB checks
+│   │   ├── auth.ts
+│   │   ├── organization.ts              # slug rules + reserved slugs (mirrors DB)
+│   │   └── team.ts
 │   │
-│   └── types/
-│       └── database.ts                  # `supabase gen types typescript` output
+│   └── types/database.ts                # generated: pnpm db:types (CI fails on drift)
 │
 ├── tests/
-│   ├── unit/                            # Vitest: schemas, helpers
-│   └── e2e/                             # Playwright: signup → book → guest submit
+│   ├── unit/                            # Vitest: schemas, redirect guard
+│   └── e2e/                             # Playwright against local Supabase + Mailpit
 │
+├── .github/workflows/ci.yml
 ├── .env.example
 ├── components.json                      # shadcn config
-├── next.config.ts
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
+└── playwright.config.ts / vitest.config.mts
 ```
 
 ### Conventions
 
-* **Feature folders own their server actions.** Every action follows the same
-  pipeline in `lib/safe-action.ts`: get the user, resolve and authorize the
-  org, parse input with Zod, call Supabase, `revalidatePath`, and return
-  `{ ok, data } | { ok: false, error }`.
-* **Reads happen in Server Components** through `features/*/queries.ts` with the
+- **Feature folders own their server actions.** Every action is wrapped in
+  `authedAction` or `orgAction` (`lib/safe-action.ts`): require a user, parse
+  input with Zod, and for org actions verify membership and role from `orgId`.
+  Handlers call Supabase, `refresh()` the page, and return
+  `{ ok, data } | { ok: false, error, fieldErrors }`. Unexpected errors are
+  logged and become a generic message; `redirect()` passes through.
+- **Org URLs are `/<slug>`.** App routes like `/login` take precedence over the
+  dynamic segment, so those words are reserved slugs, enforced by both Zod and
+  a DB check constraint (a unit test keeps the two lists in sync).
+- **Reads happen in Server Components** through `features/*/queries.ts` with the
   cookie-bound client, so RLS always applies.
-* **Zod limits mirror the DB `check` constraints.** The DB is the backstop; Zod
+- **Zod limits mirror the DB `check` constraints.** The DB is the backstop; Zod
   gives the user friendly errors.
-* **Types** are regenerated from the database after every migration
-  (`supabase gen types typescript --local > src/types/database.ts`).
+- **Types** are regenerated from the database after every migration
+  (`pnpm db:types`). CI regenerates them and fails if the committed file differs.

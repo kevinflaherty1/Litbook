@@ -3,21 +3,23 @@
 Each phase ends with something you can deploy and demo. Phases 0–4 make up the
 MVP; billing (Phase 5) is wired in before launch.
 
-## Phase 0: Foundation (½ day)
+## Phase 0: Foundation ✅
 
 - `create-next-app` (TypeScript, App Router, Tailwind, `src/`), shadcn/ui init,
   ESLint + Prettier, Vitest, Playwright.
 - `supabase init`, apply the initial migration locally, and generate
   `src/types/database.ts`.
 - `lib/env.ts` (Zod-validated env), the three Supabase clients, and
-  `middleware.ts` session refresh.
-- CI: typecheck, lint, unit tests, `supabase db lint`, and `supabase test db`.
+  `proxy.ts` session refresh (Next 16 renamed middleware to proxy).
+- CI: format, lint, typecheck, unit tests, build; then `supabase db lint`,
+  `supabase test db`, a generated-types drift check, and Playwright E2E.
 
 **Done when:** `pnpm dev` runs against local Supabase and CI is green.
 
-## Phase 1: Auth and tenancy (2–3 days)
+## Phase 1: Auth and tenancy ✅
 
-- Email magic link and Google OAuth; `/auth/callback` code exchange.
+- Email magic link (`/auth/confirm`, token-hash, works across browsers) and
+  Google OAuth (`/auth/callback`, behind `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`).
 - `/onboarding`: create the first org through `create_organization()`.
 - `(app)/[orgSlug]/layout.tsx`: resolve the org and membership, or 404. Add the
   org switcher.
@@ -25,6 +27,11 @@ MVP; billing (Phase 5) is wired in before launch.
   through Resend or Postmark), accept at `/invite/[token]`, change role, remove,
   leave.
 - `lib/safe-action.ts` wrapper.
+- Reserved org slugs, plus `get_invitation_preview()` so the invite page shows
+  who's inviting you before you accept.
+- **E2E:** sign up, create a workspace, invite, the teammate joins through a
+  magic link, role limits, single-use invites, the last-owner guard, and
+  cross-tenant 404s.
 - **pgTAP tests:** user A can never read or write org B's rows, and anon
   sees nothing.
 
@@ -85,7 +92,7 @@ few clicks.
   `checkout.session.completed` and `customer.subscription.created`,
   `customer.subscription.updated`, and `customer.subscription.deleted`.
 - Customer Portal for plan changes and cancellation.
-- Gate *create* actions (new episode, generate link) with
+- Gate _create_ actions (new episode, generate link) with
   `org_has_active_subscription()`. Reading and exporting always stay allowed.
 - Billing page: status, renewal date, and a past-due banner.
 
