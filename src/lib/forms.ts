@@ -16,7 +16,8 @@ export function handleActionResult<T extends FieldValues, R>(
   let placed = false;
   for (const [field, messages] of Object.entries(result.fieldErrors ?? {})) {
     if (!messages?.length) continue;
-    if (field in form.getValues()) {
+    // Nested keys like "customAnswers.<id>" belong to a top-level form value.
+    if (field.split(".")[0] in form.getValues()) {
       form.setError(field as Path<T>, { message: messages[0] });
       placed = true;
     }

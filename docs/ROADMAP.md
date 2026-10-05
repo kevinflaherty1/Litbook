@@ -144,11 +144,25 @@ invited teammate can.
 - Local development and CI deliver all email (invites, links, reminders,
   host notifications) to Mailpit, so E2E tests read real emails.
 
+## Phase 8: Guest page branding and custom questions ✅
+
+- Settings → Guest page: logo (public `org-branding` bucket, owners and
+  admins only, PNG/JPG/WebP up to 2 MB), brand colour (re-themes buttons,
+  focus rings and checkboxes with a readable text colour) and a welcome
+  message. A live preview shows the result.
+- Settings → Guest questions: short answer, paragraph, link, multiple choice
+  and checkbox questions, optional or required, reorderable. Questions are
+  archived rather than deleted, so earlier answers keep their label. The
+  answer type is fixed once created (column grants enforce it).
+- Answers are validated against the questions the guest was shown, on the
+  client and again on the server, and stored in `submissions.custom_answers`.
+  They appear in the vault and in the episode export's `guests.md`.
+
 ## Post-MVP backlog
 
 - Calendar booking (guest picks a recording slot), plus Google Calendar and
   Zoom or Riverside links.
-- Custom form fields per org, and custom branding and domain for the portal.
+- Custom domain for the guest portal.
 - Multiple asset types: intro audio, company logos, pre-interview questionnaire.
 - Plan tiers: seats, episodes per month.
 - Account-deletion flow and data export (GDPR).

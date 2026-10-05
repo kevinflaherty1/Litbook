@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { CalendarClock, Lock } from "lucide-react";
 
 import { LocalDateTime } from "@/components/shared/local-date-time";
+import { logoPublicUrl } from "@/lib/branding";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { OnboardingForm } from "@/features/portal/components/onboarding-form";
 import {
@@ -19,10 +20,19 @@ export default async function GuestPortalPage({ params }: PageProps<"/submit/[to
   after(() => recordOnboardingVisit(token));
   const headshotPreviewUrl = await getHeadshotPreviewUrl(ctx.submission?.headshot_path);
   const firstName = ctx.guest.full_name.split(" ")[0];
+  const logoUrl = logoPublicUrl(ctx.organization.logo_path);
 
   return (
     <>
       <header className="grid gap-2">
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- public Storage URL
+          <img
+            src={logoUrl}
+            alt={`${ctx.organization.name} logo`}
+            className="mb-2 h-12 w-fit max-w-48 object-contain"
+          />
+        )}
         <p className="text-sm font-medium text-muted-foreground">{ctx.organization.name}</p>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {ctx.is_locked ? `Thanks, ${firstName}!` : `Hi ${firstName}, welcome to the show`}
@@ -35,6 +45,11 @@ export default async function GuestPortalPage({ params }: PageProps<"/submit/[to
         {ctx.episode.recording_at && (
           <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <CalendarClock className="size-4" /> Recording <LocalDateTime value={ctx.episode.recording_at} />
+          </p>
+        )}
+        {ctx.organization.portal_welcome && !ctx.is_locked && (
+          <p className="rounded-md border bg-background p-4 text-sm whitespace-pre-wrap">
+            {ctx.organization.portal_welcome}
           </p>
         )}
       </header>
@@ -65,6 +80,7 @@ export default async function GuestPortalPage({ params }: PageProps<"/submit/[to
             releaseText={ctx.release.text}
             existing={ctx.submission}
             headshotPreviewUrl={headshotPreviewUrl}
+            customFields={ctx.custom_fields}
           />
         </>
       )}

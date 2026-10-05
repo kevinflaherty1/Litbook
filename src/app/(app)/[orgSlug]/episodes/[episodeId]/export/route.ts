@@ -2,6 +2,7 @@ import { Zip, ZipPassThrough, strToU8 } from "fflate";
 import type { NextRequest } from "next/server";
 
 import { getEpisodeSubmissions } from "@/features/bookings/queries";
+import { answeredQuestions, listCustomFields } from "@/features/custom-fields/queries";
 import { attachment, getOrgForRoute, notFoundResponse } from "@/lib/route-auth";
 import { fileSlug, guestsMarkdown } from "@/lib/show-notes";
 
@@ -24,7 +25,10 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/[orgSlug]/episo
   if (error) throw error;
   if (!episode) return notFoundResponse();
 
-  const guests = await getEpisodeSubmissions(org.id, episodeId);
+  const [guests, customFields] = await Promise.all([
+    getEpisodeSubmissions(org.id, episodeId),
+    listCustomFields(org.id),
+  ]);
   if (!guests.length) return new Response("No guest submissions to export yet.", { status: 404 });
 
   // Unique, safe file names for each headshot.
@@ -53,7 +57,11 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/[orgSlug]/episo
           strToU8(
             guestsMarkdown(
               episode.title,
-              files.map((f) => ({ ...f.assets, headshotFile: f.headshotFile })),
+              files.map((f) => ({
+                ...f.assets,
+                headshotFile: f.headshotFile,
+                answers: answeredQuestions(customFields, f.customAnswers),
+              })),
             ),
           ),
           true,

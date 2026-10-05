@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ONBOARDING_STATUSES } from "@/schemas/booking";
+import { customFieldSchema } from "@/schemas/custom-fields";
 import { onboardingTokenSchema } from "@/schemas/portal";
 
 const contextSchema = z.object({
@@ -13,10 +14,17 @@ const contextSchema = z.object({
   status: z.enum(ONBOARDING_STATUSES),
   is_locked: z.boolean(),
   created_by: z.uuid().nullable(),
-  organization: z.object({ name: z.string(), slug: z.string(), logo_url: z.string().nullable() }),
+  organization: z.object({
+    name: z.string(),
+    slug: z.string(),
+    logo_path: z.string().nullable(),
+    brand_color: z.string().nullable(),
+    portal_welcome: z.string().nullable(),
+  }),
   episode: z.object({ id: z.uuid(), title: z.string(), recording_at: z.string().nullable() }),
   guest: z.object({ full_name: z.string(), email: z.string().nullable() }),
   release: z.object({ text: z.string(), version: z.number() }),
+  custom_fields: z.array(customFieldSchema),
   submission: z
     .object({
       display_name: z.string().nullable(),
@@ -28,6 +36,7 @@ const contextSchema = z.object({
       website_url: z.string().nullable(),
       social_links: z.record(z.string(), z.string()),
       headshot_path: z.string().nullable(),
+      custom_answers: z.record(z.string(), z.union([z.string(), z.boolean()])),
       release_signed_name: z.string().nullable(),
       release_signed_at: z.string().nullable(),
     })

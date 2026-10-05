@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CustomFieldsManager } from "@/features/custom-fields/components/custom-fields-manager";
+import { listCustomFields } from "@/features/custom-fields/queries";
+import { BrandingForm } from "@/features/organizations/components/branding-form";
 import { OrganizationSettingsForm } from "@/features/organizations/components/organization-settings-form";
 import { DeleteOrganizationForm } from "@/features/organizations/components/delete-organization-form";
 import { GuestRemindersToggle } from "@/features/organizations/components/guest-reminders-toggle";
@@ -16,7 +19,10 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
   const { orgSlug } = await params;
   const { org, user, role, canManage } = await requireOrgMembership(orgSlug);
   const supabase = await createClient();
-  const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+  const [{ data: profile }, customFields] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+    listCustomFields(org.id),
+  ]);
 
   return (
     <>
@@ -31,6 +37,27 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
         </CardHeader>
         <CardContent>
           <OrganizationSettingsForm org={org} disabled={!canManage} />
+        </CardContent>
+      </Card>
+      <Card id="guest-page">
+        <CardHeader>
+          <CardTitle>Guest page</CardTitle>
+          <CardDescription>Make the onboarding page look like your show.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BrandingForm org={org} disabled={!canManage} />
+        </CardContent>
+      </Card>
+      <Card id="questions">
+        <CardHeader>
+          <CardTitle>Guest questions</CardTitle>
+          <CardDescription>
+            Extra questions on the onboarding page, like a pre-interview questionnaire. Answers show up in
+            each guest&apos;s vault and in the episode export.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CustomFieldsManager orgId={org.id} fields={customFields} disabled={!canManage} />
         </CardContent>
       </Card>
       <Card id="release-form">

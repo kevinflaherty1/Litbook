@@ -12,6 +12,8 @@ import { publicAction } from "@/lib/safe-action";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyHostOfSubmission } from "@/features/portal/notify";
 import { getOnboardingContext } from "@/features/portal/queries";
+import { fieldErrorsOf } from "@/lib/safe-action";
+import { customAnswersSchema } from "@/schemas/custom-fields";
 import { HEADSHOT_EXTENSIONS, headshotUploadSchema, onboardingSubmissionSchema } from "@/schemas/portal";
 
 const LINK_INVALID = "This link is no longer valid. Ask your host to send you a new one.";
@@ -59,6 +61,23 @@ export const submitOnboarding = publicAction(onboardingSubmissionSchema, async (
     return fail("Please add a headshot.", { headshotPath: ["Please add a headshot."] });
   }
 
+  // Check answers against the questions the guest was actually shown.
+  const answers = customAnswersSchema(ctx.custom_fields).safeParse(input.customAnswers);
+  if (!answers.success) {
+    const errors = Object.fromEntries(
+      Object.entries(fieldErrorsOf(answers.error)).map(([key, messages]) => [
+        `customAnswers.${key}`,
+        messages,
+      ]),
+    );
+    return fail("Please answer the highlighted questions.", errors);
+  }
+  // Keep answers to questions that have since been archived.
+  const activeIds = new Set(ctx.custom_fields.map((f) => f.id));
+  const keptAnswers = Object.fromEntries(
+    Object.entries(ctx.submission?.custom_answers ?? {}).filter(([id]) => !activeIds.has(id)),
+  );
+
   const { ip, userAgent } = await getRequestMeta();
   const admin = createAdminClient();
   const { error } = await admin.rpc("submit_onboarding", {
@@ -73,6 +92,7 @@ export const submitOnboarding = publicAction(onboardingSubmissionSchema, async (
       website_url: input.websiteUrl,
       social_links: input.socialLinks,
       headshot_path: input.headshotPath,
+      custom_answers: { ...keptAnswers, ...answers.data },
       release_accepted: input.releaseAccepted,
       release_signed_name: input.releaseSignedName,
     },

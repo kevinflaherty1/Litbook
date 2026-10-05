@@ -23,6 +23,66 @@ export type Database = {
   };
   public: {
     Tables: {
+      custom_fields: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          field_type: Database["public"]["Enums"]["custom_field_type"];
+          help_text: string | null;
+          id: string;
+          label: string;
+          options: string[];
+          organization_id: string;
+          position: number;
+          required: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          field_type?: Database["public"]["Enums"]["custom_field_type"];
+          help_text?: string | null;
+          id?: string;
+          label: string;
+          options?: string[];
+          organization_id: string;
+          position?: number;
+          required?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          field_type?: Database["public"]["Enums"]["custom_field_type"];
+          help_text?: string | null;
+          id?: string;
+          label?: string;
+          options?: string[];
+          organization_id?: string;
+          position?: number;
+          required?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "custom_fields_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "custom_fields_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       episode_guests: {
         Row: {
           created_at: string;
@@ -304,14 +364,16 @@ export type Database = {
       organizations: {
         Row: {
           billing_event_at: string | null;
+          brand_color: string | null;
           cancel_at_period_end: boolean;
           created_at: string;
           created_by: string | null;
           current_period_end: string | null;
           guest_reminders_enabled: boolean;
           id: string;
-          logo_url: string | null;
+          logo_path: string | null;
           name: string;
+          portal_welcome: string | null;
           release_form_text: string;
           release_form_version: number;
           slug: string;
@@ -323,14 +385,16 @@ export type Database = {
         };
         Insert: {
           billing_event_at?: string | null;
+          brand_color?: string | null;
           cancel_at_period_end?: boolean;
           created_at?: string;
           created_by?: string | null;
           current_period_end?: string | null;
           guest_reminders_enabled?: boolean;
           id?: string;
-          logo_url?: string | null;
+          logo_path?: string | null;
           name: string;
+          portal_welcome?: string | null;
           release_form_text?: string;
           release_form_version?: number;
           slug: string;
@@ -342,14 +406,16 @@ export type Database = {
         };
         Update: {
           billing_event_at?: string | null;
+          brand_color?: string | null;
           cancel_at_period_end?: boolean;
           created_at?: string;
           created_by?: string | null;
           current_period_end?: string | null;
           guest_reminders_enabled?: boolean;
           id?: string;
-          logo_url?: string | null;
+          logo_path?: string | null;
           name?: string;
+          portal_welcome?: string | null;
           release_form_text?: string;
           release_form_version?: number;
           slug?: string;
@@ -435,6 +501,7 @@ export type Database = {
       submissions: {
         Row: {
           created_at: string;
+          custom_answers: NonNullable<Json>;
           display_name: string | null;
           episode_guest_id: string;
           headline: string | null;
@@ -457,6 +524,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          custom_answers?: NonNullable<Json>;
           display_name?: string | null;
           episode_guest_id: string;
           headline?: string | null;
@@ -479,6 +547,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          custom_answers?: NonNullable<Json>;
           display_name?: string | null;
           episode_guest_id?: string;
           headline?: string | null;
@@ -552,14 +621,16 @@ export type Database = {
         Args: { p_name: string; p_slug: string };
         Returns: {
           billing_event_at: string | null;
+          brand_color: string | null;
           cancel_at_period_end: boolean;
           created_at: string;
           created_by: string | null;
           current_period_end: string | null;
           guest_reminders_enabled: boolean;
           id: string;
-          logo_url: string | null;
+          logo_path: string | null;
           name: string;
+          portal_welcome: string | null;
           release_form_text: string;
           release_form_version: number;
           slug: string;
@@ -603,6 +674,7 @@ export type Database = {
       };
     };
     Enums: {
+      custom_field_type: "short_text" | "long_text" | "url" | "select" | "checkbox";
       episode_status: "draft" | "scheduled" | "recorded" | "published" | "archived";
       onboarding_status: "pending" | "assets_submitted" | "ready" | "cancelled";
       org_role: "owner" | "admin" | "member";
@@ -728,6 +800,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      custom_field_type: ["short_text", "long_text", "url", "select", "checkbox"],
       episode_status: ["draft", "scheduled", "recorded", "published", "archived"],
       onboarding_status: ["pending", "assets_submitted", "ready", "cancelled"],
       org_role: ["owner", "admin", "member"],

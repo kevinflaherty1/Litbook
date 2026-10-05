@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 
 import { Field } from "@/components/shared/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { submitOnboarding } from "@/features/portal/actions";
 import { HeadshotDropzone } from "@/features/portal/components/headshot-dropzone";
 import { handleActionResult } from "@/lib/forms";
 import { cn } from "@/lib/utils";
+import { customAnswersSchema, type CustomField } from "@/schemas/custom-fields";
 import {
   onboardingSubmissionSchema,
   SOCIAL_PLATFORMS,
@@ -29,6 +31,7 @@ type Existing = {
   name_pronunciation: string | null;
   website_url: string | null;
   social_links: Record<string, string>;
+  custom_answers: Record<string, string | boolean>;
 } | null;
 
 export function OnboardingForm({
@@ -37,17 +40,24 @@ export function OnboardingForm({
   releaseText,
   existing,
   headshotPreviewUrl,
+  customFields,
 }: {
   token: string;
   guestName: string;
   releaseText: string;
   existing: Existing;
   headshotPreviewUrl: string | null;
+  customFields: CustomField[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
+  const schema = useMemo(
+    () => onboardingSubmissionSchema.extend({ customAnswers: customAnswersSchema(customFields) }),
+    [customFields],
+  );
   const form = useForm<OnboardingSubmissionInput>({
-    resolver: zodResolver(onboardingSubmissionSchema, undefined, { raw: true }),
+    // The questions are only known at runtime; the static input type covers them as a record.
+    resolver: zodResolver(schema, undefined, { raw: true }) as unknown as Resolver<OnboardingSubmissionInput>,
     defaultValues: {
       token,
       displayName: existing?.display_name ?? guestName,
@@ -61,6 +71,15 @@ export function OnboardingForm({
         SOCIAL_PLATFORMS.map((p) => [p.key, existing?.social_links[p.key] ?? ""]),
       ),
       headshotPath: "",
+      customAnswers: Object.fromEntries(
+        customFields.map((f) => {
+          const previous = existing?.custom_answers[f.id];
+          return [
+            f.id,
+            f.field_type === "checkbox" ? previous === true : typeof previous === "string" ? previous : "",
+          ];
+        }),
+      ),
       releaseAccepted: false,
       releaseSignedName: "",
     },
@@ -195,6 +214,71 @@ export function OnboardingForm({
           ))}
         </CardContent>
       </Card>
+
+      {customFields.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>A few more questions</CardTitle>
+            <CardDescription>From your host, to help them prepare.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {customFields.map((f) => {
+              const error = (errors.customAnswers as Record<string, { message?: string }> | undefined)?.[f.id]
+                ?.message;
+              const label = f.required ? f.label : `${f.label} (optional)`;
+              const name = `customAnswers.${f.id}` as const;
+              if (f.field_type === "checkbox") {
+                return (
+                  <div key={f.id} className="grid gap-1">
+                    <label className="flex items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 size-4 accent-primary"
+                        aria-invalid={error ? true : undefined}
+                        {...form.register(name)}
+                      />
+                      <span className="grid gap-1">
+                        <span>{label}</span>
+                        {f.help_text && <span className="text-muted-foreground">{f.help_text}</span>}
+                      </span>
+                    </label>
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                  </div>
+                );
+              }
+              return (
+                <Field
+                  key={f.id}
+                  id={`question-${f.id}`}
+                  label={label}
+                  description={f.help_text ?? undefined}
+                  error={error}
+                >
+                  {f.field_type === "long_text" ? (
+                    <Textarea rows={4} {...form.register(name)} />
+                  ) : f.field_type === "select" ? (
+                    <NativeSelect {...form.register(name)}>
+                      <option value="">Choose…</option>
+                      {f.options.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  ) : (
+                    <Input
+                      {...(f.field_type === "url"
+                        ? { inputMode: "url" as const, autoCapitalize: "none" }
+                        : {})}
+                      {...form.register(name)}
+                    />
+                  )}
+                </Field>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

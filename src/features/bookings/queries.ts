@@ -6,7 +6,7 @@ import type { GuestAssets } from "@/lib/show-notes";
 import { createClient } from "@/lib/supabase/server";
 
 const SUBMISSION_COLUMNS = `id, display_name, headline, short_bio, long_bio, pronouns, name_pronunciation,
-  website_url, social_links, headshot_path, release_signed_name, release_signed_at, release_version,
+  website_url, social_links, headshot_path, custom_answers, release_signed_name, release_signed_at, release_version,
   release_text_snapshot, release_ip, release_user_agent, updated_at` as const;
 
 /** A booking with its guest, episode, and submission. Null when not in this org. */
@@ -63,6 +63,7 @@ export async function getEpisodeSubmissions(orgId: string, episodeId: string) {
       {
         bookingId: b.id,
         headshotPath: submission.headshot_path,
+        customAnswers: submission.custom_answers,
         assets: toGuestAssets(b.guests.full_name, submission),
       },
     ];

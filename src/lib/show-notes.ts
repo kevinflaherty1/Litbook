@@ -36,7 +36,11 @@ export function episodeShowNotes(episodeTitle: string, guests: GuestAssets[]) {
 /** Markdown for the export ZIP: everything about each guest, including the long bio. */
 export function guestsMarkdown(
   episodeTitle: string,
-  guests: (GuestAssets & { headshotFile: string | null })[],
+  guests: (GuestAssets & {
+    headshotFile: string | null;
+    answers?: { label: string; answer: string | null }[];
+    files?: { label: string; file: string }[];
+  })[],
 ) {
   const sections = guests.map((g) => {
     const parts = [`## ${g.name}`];
@@ -50,6 +54,12 @@ export function guestsMarkdown(
     if (g.longBio) parts.push(`### Long bio\n\n${g.longBio}`);
     const links = linksOf(g);
     if (links.length) parts.push(`### Links\n\n${links.map((l) => `- ${l}`).join("\n")}`);
+    const files = g.files ?? [];
+    if (files.length) parts.push(`### Files\n\n${files.map((f) => `- ${f.label}: ${f.file}`).join("\n")}`);
+    const answers = (g.answers ?? []).filter((a) => a.answer);
+    if (answers.length) {
+      parts.push(`### Questions\n\n${answers.map((a) => `**${a.label}**\n\n${a.answer}`).join("\n\n")}`);
+    }
     return parts.join("\n\n");
   });
   return [`# ${episodeTitle}: guests`, ...sections].join("\n\n") + "\n";

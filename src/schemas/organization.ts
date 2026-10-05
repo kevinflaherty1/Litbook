@@ -85,3 +85,27 @@ export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
 export type UpdateReleaseFormInput = z.input<typeof updateReleaseFormSchema>;
 
 export const updateGuestRemindersSchema = z.object({ orgId: z.uuid(), enabled: z.boolean() });
+
+export const LOGO_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const LOGO_MAX_BYTES = 2 * 1024 * 1024; // matches the org-branding bucket's file_size_limit
+
+export const brandColorSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .transform((v) => v || null)
+  .refine((v) => v === null || /^#[0-9a-f]{6}$/.test(v), "Use a hex colour like #4f46e5.");
+
+export const updateBrandingSchema = z.object({
+  orgId: z.uuid(),
+  /** Storage key of a newly uploaded logo; "" keeps the current one. */
+  logoPath: z.string().max(300).default(""),
+  removeLogo: z.boolean().default(false),
+  brandColor: brandColorSchema,
+  portalWelcome: z
+    .string()
+    .trim()
+    .max(1000, "Keep it under 1,000 characters.")
+    .transform((v) => v || null),
+});
+export type UpdateBrandingInput = z.input<typeof updateBrandingSchema>;

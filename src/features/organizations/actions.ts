@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteOrganizationSchema } from "@/schemas/billing";
 import {
   createOrganizationSchema,
+  updateBrandingSchema,
   updateOrganizationSchema,
   updateGuestRemindersSchema,
   updateReleaseFormSchema,
@@ -101,7 +102,7 @@ export const deleteOrganization = orgAction(
       }
     }
 
-    await removeStoragePrefix(`${org.id}/`);
+    await Promise.all([removeStoragePrefix(`${org.id}/`), removeStoragePrefix(`${org.id}/`, "org-branding")]);
     // organizations has no DELETE grant for signed-in users; the owner check above authorises this.
     const { error: deleteError } = await createAdminClient().from("organizations").delete().eq("id", org.id);
     if (deleteError) throw deleteError;
@@ -119,6 +120,54 @@ export const updateGuestReminders = orgAction(
       .update({ guest_reminders_enabled: input.enabled })
       .eq("id", org.id);
     if (error) throw error;
+    refresh();
+    return ok(undefined);
+  },
+);
+
+/**
+ * Guest page branding. A new logo is uploaded by the browser straight to the
+ * org-branding bucket (Storage policies allow owners and admins only); this
+ * checks it landed under the org's prefix, saves it, and removes the old one.
+ */
+export const updateBranding = orgAction(
+  updateBrandingSchema,
+  { roles: ["owner", "admin"] },
+  async (input, { supabase, org }) => {
+    const { data: current, error: readError } = await supabase
+      .from("organizations")
+      .select("logo_path")
+      .eq("id", org.id)
+      .single();
+    if (readError) throw readError;
+
+    let logoPath = current.logo_path;
+    if (input.removeLogo) logoPath = null;
+    if (input.logoPath) {
+      const prefix = `${org.id}/`;
+      const name = input.logoPath.slice(prefix.length);
+      if (!input.logoPath.startsWith(prefix) || !name || name.includes("/")) {
+        return fail("That logo upload isn't valid. Please upload it again.");
+      }
+      const { data: found, error: listError } = await supabase.storage
+        .from("org-branding")
+        .list(org.id, { search: name, limit: 1 });
+      if (listError) throw listError;
+      if (!found.some((f) => f.name === name))
+        return fail("The logo didn't finish uploading. Please try again.");
+      logoPath = input.logoPath;
+    }
+
+    const { error } = await supabase
+      .from("organizations")
+      .update({ logo_path: logoPath, brand_color: input.brandColor, portal_welcome: input.portalWelcome })
+      .eq("id", org.id);
+    if (error) throw error;
+
+    if (current.logo_path && current.logo_path !== logoPath) {
+      const { error: removeError } = await supabase.storage.from("org-branding").remove([current.logo_path]);
+      if (removeError) console.error("[branding] could not remove old logo", removeError);
+    }
     refresh();
     return ok(undefined);
   },

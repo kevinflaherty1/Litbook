@@ -13,6 +13,7 @@ import { BookingStatusBadge } from "@/features/bookings/components/booking-statu
 import { CopyableText } from "@/features/bookings/components/copyable-text";
 import { SubmissionContentForm } from "@/features/bookings/components/submission-content-form";
 import { getBooking, getHeadshotUrl, toGuestAssets } from "@/features/bookings/queries";
+import { answeredQuestions, listCustomFields } from "@/features/custom-fields/queries";
 import { requireOrgMembership } from "@/features/organizations/queries";
 import { uuidParamOr404 } from "@/lib/params";
 import { guestShowNotes } from "@/lib/show-notes";
@@ -36,7 +37,11 @@ export default async function BookingPage({ params }: PageProps<"/[orgSlug]/book
   const s = booking.submission;
   const base = `/${org.slug}/bookings/${booking.id}`;
   const episodeHref = `/${org.slug}/episodes/${booking.episodes.id}`;
-  const headshotUrl = await getHeadshotUrl(s?.headshot_path ?? null);
+  const [headshotUrl, customFields] = await Promise.all([
+    getHeadshotUrl(s?.headshot_path ?? null),
+    listCustomFields(org.id),
+  ]);
+  const answers = s ? answeredQuestions(customFields, s.custom_answers) : [];
   const assets = s ? toGuestAssets(booking.guests.full_name, s) : null;
   const socials = assets ? socialEntries(assets.socialLinks) : [];
 
@@ -149,6 +154,25 @@ export default async function BookingPage({ params }: PageProps<"/[orgSlug]/book
               </div>
             </CardContent>
           </Card>
+
+          {answers.length > 0 && (
+            <Card id="answers">
+              <CardHeader>
+                <CardTitle>Answers</CardTitle>
+                <CardDescription>Their answers to your guest questions.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-5">
+                {answers.map((a) => (
+                  <CopyableText
+                    key={a.id}
+                    label={a.archived ? `${a.label} (archived question)` : a.label}
+                    value={a.answer}
+                    multiline
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
