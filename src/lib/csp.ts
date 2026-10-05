@@ -2,7 +2,7 @@
  * Content Security Policy for every page. Scripts need this request's nonce
  * ('strict-dynamic' then trusts what those scripts load). Styles allow
  * 'unsafe-inline' because Radix positions popovers with inline style
- * attributes. Supabase is allowed for headshot uploads and signed image URLs.
+ * attributes. Supabase is allowed for uploads and signed image and audio URLs.
  */
 export function buildCsp({
   nonce,
@@ -21,6 +21,8 @@ export function buildCsp({
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' blob: data: ${supabase}`,
+    // Intro audio previews in the vault play from short-lived Storage URLs.
+    `media-src 'self' blob: ${supabase}`,
     "font-src 'self'",
     `connect-src 'self' ${supabase}`,
     "object-src 'none'",

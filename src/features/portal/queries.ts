@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ONBOARDING_STATUSES } from "@/schemas/booking";
+import { ASSET_KINDS } from "@/schemas/assets";
 import { customFieldSchema } from "@/schemas/custom-fields";
 import { onboardingTokenSchema } from "@/schemas/portal";
 
@@ -20,11 +21,15 @@ const contextSchema = z.object({
     logo_path: z.string().nullable(),
     brand_color: z.string().nullable(),
     portal_welcome: z.string().nullable(),
+    requested_assets: z.array(z.enum(ASSET_KINDS)),
   }),
   episode: z.object({ id: z.uuid(), title: z.string(), recording_at: z.string().nullable() }),
   guest: z.object({ full_name: z.string(), email: z.string().nullable() }),
   release: z.object({ text: z.string(), version: z.number() }),
   custom_fields: z.array(customFieldSchema),
+  assets: z.array(
+    z.object({ kind: z.enum(ASSET_KINDS), path: z.string(), file_name: z.string(), size_bytes: z.number() }),
+  ),
   submission: z
     .object({
       display_name: z.string().nullable(),

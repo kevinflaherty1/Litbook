@@ -376,6 +376,7 @@ export type Database = {
           portal_welcome: string | null;
           release_form_text: string;
           release_form_version: number;
+          requested_assets: Database["public"]["Enums"]["asset_kind"][];
           slug: string;
           stripe_customer_id: string | null;
           stripe_price_id: string | null;
@@ -397,6 +398,7 @@ export type Database = {
           portal_welcome?: string | null;
           release_form_text?: string;
           release_form_version?: number;
+          requested_assets?: Database["public"]["Enums"]["asset_kind"][];
           slug: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
@@ -418,6 +420,7 @@ export type Database = {
           portal_welcome?: string | null;
           release_form_text?: string;
           release_form_version?: number;
+          requested_assets?: Database["public"]["Enums"]["asset_kind"][];
           slug?: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
@@ -497,6 +500,53 @@ export type Database = {
           type?: string;
         };
         Relationships: [];
+      };
+      submission_assets: {
+        Row: {
+          content_type: string;
+          created_at: string;
+          episode_guest_id: string;
+          file_name: string;
+          id: string;
+          kind: Database["public"]["Enums"]["asset_kind"];
+          organization_id: string;
+          path: string;
+          size_bytes: number;
+          updated_at: string;
+        };
+        Insert: {
+          content_type: string;
+          created_at?: string;
+          episode_guest_id: string;
+          file_name: string;
+          id?: string;
+          kind: Database["public"]["Enums"]["asset_kind"];
+          organization_id: string;
+          path: string;
+          size_bytes: number;
+          updated_at?: string;
+        };
+        Update: {
+          content_type?: string;
+          created_at?: string;
+          episode_guest_id?: string;
+          file_name?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["asset_kind"];
+          organization_id?: string;
+          path?: string;
+          size_bytes?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "submission_assets_organization_id_episode_guest_id_fkey";
+            columns: ["organization_id", "episode_guest_id"];
+            isOneToOne: false;
+            referencedRelation: "episode_guests";
+            referencedColumns: ["organization_id", "id"];
+          },
+        ];
       };
       submissions: {
         Row: {
@@ -633,6 +683,7 @@ export type Database = {
           portal_welcome: string | null;
           release_form_text: string;
           release_form_version: number;
+          requested_assets: Database["public"]["Enums"]["asset_kind"][];
           slug: string;
           stripe_customer_id: string | null;
           stripe_price_id: string | null;
@@ -650,6 +701,7 @@ export type Database = {
       generate_token: { Args: Record<PropertyKey, never>; Returns: string };
       get_invitation_preview: { Args: { p_token: string }; Returns: Json };
       get_onboarding_context: { Args: { p_token: string }; Returns: Json };
+      guest_file_allowed: { Args: { p_kind: string; p_mimetype: string; p_size: number }; Returns: boolean };
       has_org_role: {
         Args: { p_org: string; p_roles: Database["public"]["Enums"]["org_role"][] };
         Returns: boolean;
@@ -674,6 +726,7 @@ export type Database = {
       };
     };
     Enums: {
+      asset_kind: "company_logo" | "intro_audio" | "media_kit";
       custom_field_type: "short_text" | "long_text" | "url" | "select" | "checkbox";
       episode_status: "draft" | "scheduled" | "recorded" | "published" | "archived";
       onboarding_status: "pending" | "assets_submitted" | "ready" | "cancelled";
@@ -800,6 +853,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      asset_kind: ["company_logo", "intro_audio", "media_kit"],
       custom_field_type: ["short_text", "long_text", "url", "select", "checkbox"],
       episode_status: ["draft", "scheduled", "recorded", "published", "archived"],
       onboarding_status: ["pending", "assets_submitted", "ready", "cancelled"],

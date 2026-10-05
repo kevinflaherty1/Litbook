@@ -81,8 +81,10 @@ export async function completePortal(
   guest: Page,
   url: string,
   details: { shortBio: string; headline?: string },
+  options: { keepPage?: boolean } = {},
 ) {
-  await guest.goto(url);
+  // keepPage: continue on the already-open portal page (e.g. after uploading files).
+  if (!options.keepPage) await guest.goto(url);
   if (details.headline) await guest.getByLabel("Headline").fill(details.headline);
   await guest.getByLabel("Short bio").fill(details.shortBio);
   await guest.getByLabel("Website").fill("ada.dev");

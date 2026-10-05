@@ -174,10 +174,24 @@ invited teammate can.
   workspace with other members, in the app and by the existing
   keep-an-owner trigger.
 
+## Phase 10: More files from guests ✅
+
+- Settings → Files from guests: ask for a company logo (image, 10 MB),
+  intro audio (MP3/M4A/WAV, 50 MB) and a media kit (PDF, 25 MB). Always
+  optional for the guest. The pre-interview questionnaire is covered by
+  Phase 8's guest questions.
+- Files upload straight to Storage through signed URLs. `submit_onboarding()`
+  checks each file is in the booking's folder, was requested, and that the
+  stored object's real type and size fit its kind (headshots too), then
+  records it in `submission_assets` (service role only; hosts read).
+- Guests can replace or remove a file; replaced files are deleted.
+- The vault lists files with image and audio previews and downloads. The
+  episode export puts them under `files/`; workspace and guest exports
+  include them.
+
 ## Post-MVP backlog
 
 - Calendar booking (guest picks a recording slot), plus Google Calendar and
   Zoom or Riverside links.
 - Custom domain for the guest portal.
-- Multiple asset types: intro audio, company logos, pre-interview questionnaire.
 - Plan tiers: seats, episodes per month.

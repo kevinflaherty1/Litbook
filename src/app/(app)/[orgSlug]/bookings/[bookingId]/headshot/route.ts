@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getBooking, getHeadshotUrl } from "@/features/bookings/queries";
+import { getBooking, getGuestFileUrl } from "@/features/bookings/queries";
 import { notFoundResponse, getOrgForRoute } from "@/lib/route-auth";
 import { fileSlug } from "@/lib/show-notes";
 
@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/[orgSlug]/booki
   if (!booking || !path) return notFoundResponse();
 
   const ext = path.split(".").pop() ?? "jpg";
-  const url = await getHeadshotUrl(path, {
+  const url = await getGuestFileUrl(path, {
     download: `${fileSlug(booking.submission?.display_name || booking.guests.full_name)}.${ext}`,
     expiresIn: 60,
   });

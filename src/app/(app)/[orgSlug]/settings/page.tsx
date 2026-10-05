@@ -11,6 +11,7 @@ import { BrandingForm } from "@/features/organizations/components/branding-form"
 import { OrganizationSettingsForm } from "@/features/organizations/components/organization-settings-form";
 import { DeleteOrganizationForm } from "@/features/organizations/components/delete-organization-form";
 import { GuestRemindersToggle } from "@/features/organizations/components/guest-reminders-toggle";
+import { RequestedAssetsForm } from "@/features/organizations/components/requested-assets-form";
 import { ReleaseFormEditor } from "@/features/organizations/components/release-form-editor";
 import { requireOrgMembership } from "@/features/organizations/queries";
 import { ProfileForm } from "@/features/team/components/profile-form";
@@ -61,6 +62,17 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
         </CardHeader>
         <CardContent>
           <CustomFieldsManager orgId={org.id} fields={customFields} disabled={!canManage} />
+        </CardContent>
+      </Card>
+      <Card id="files">
+        <CardHeader>
+          <CardTitle>Files from guests</CardTitle>
+          <CardDescription>
+            Besides a headshot, ask guests for these files. They&apos;re always optional for the guest.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RequestedAssetsForm orgId={org.id} requested={org.requested_assets} disabled={!canManage} />
         </CardContent>
       </Card>
       <Card id="release-form">

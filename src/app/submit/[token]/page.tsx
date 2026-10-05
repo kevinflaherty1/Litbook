@@ -81,6 +81,8 @@ export default async function GuestPortalPage({ params }: PageProps<"/submit/[to
             existing={ctx.submission}
             headshotPreviewUrl={headshotPreviewUrl}
             customFields={ctx.custom_fields}
+            requestedAssets={ctx.organization.requested_assets}
+            existingAssets={ctx.assets}
           />
         </>
       )}

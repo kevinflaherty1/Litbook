@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getEpisodeSubmissions } from "@/features/bookings/queries";
 import { answeredQuestions, listCustomFields } from "@/features/custom-fields/queries";
 import { getOrgForRoute, notFoundResponse } from "@/lib/route-auth";
+import { ASSET_SPECS } from "@/schemas/assets";
 import { fileSlug, guestsMarkdown } from "@/lib/show-notes";
 import { zipResponse } from "@/lib/zip-stream";
 
@@ -33,14 +34,25 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/[orgSlug]/episo
 
   // Unique, safe file names for each headshot.
   const used = new Set<string>();
-  const files = guests.map((g) => {
-    if (!g.headshotPath) return { ...g, headshotFile: null };
-    const ext = g.headshotPath.split(".").pop() ?? "jpg";
-    const base = fileSlug(g.assets.name);
+  const unique = (base: string, ext: string) => {
     let name = `${base}.${ext}`;
     for (let i = 2; used.has(name); i++) name = `${base}-${i}.${ext}`;
     used.add(name);
-    return { ...g, headshotFile: `headshots/${name}` };
+    return name;
+  };
+  const files = guests.map((g) => {
+    const base = fileSlug(g.assets.name);
+    const extras = g.files.map((f) => ({
+      path: f.path,
+      label: ASSET_SPECS[f.kind].label,
+      zipName: `files/${unique(`${base}-${f.kind.replace(/_/g, "-")}`, f.path.split(".").pop() ?? "bin")}`,
+    }));
+    if (!g.headshotPath) return { ...g, headshotFile: null, extras };
+    return {
+      ...g,
+      headshotFile: `headshots/${unique(base, g.headshotPath.split(".").pop() ?? "jpg")}`,
+      extras,
+    };
   });
 
   return zipResponse(`${fileSlug(episode.title)}-guests.zip`, async (add) => {
@@ -52,19 +64,23 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/[orgSlug]/episo
           ...f.assets,
           headshotFile: f.headshotFile,
           answers: answeredQuestions(customFields, f.customAnswers),
+          files: f.extras.map((e) => ({ label: e.label, file: e.zipName })),
         })),
       ),
     );
-    for (const f of files) {
-      if (!f.headshotPath || !f.headshotFile) continue;
+    const downloads = files.flatMap((f) => [
+      ...(f.headshotPath && f.headshotFile ? [{ path: f.headshotPath, zipName: f.headshotFile }] : []),
+      ...f.extras,
+    ]);
+    for (const d of downloads) {
       const { data: blob, error: downloadError } = await supabase.storage
         .from("guest-assets")
-        .download(f.headshotPath);
+        .download(d.path);
       if (downloadError) {
-        console.error("[export] could not download headshot", f.headshotPath, downloadError);
+        console.error("[export] could not download", d.path, downloadError);
         continue;
       }
-      add(f.headshotFile, new Uint8Array(await blob.arrayBuffer()));
+      add(d.zipName, new Uint8Array(await blob.arrayBuffer()));
     }
   });
 }

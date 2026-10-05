@@ -12,9 +12,11 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { submitOnboarding } from "@/features/portal/actions";
+import { AssetUploader } from "@/features/portal/components/asset-uploader";
 import { HeadshotDropzone } from "@/features/portal/components/headshot-dropzone";
 import { handleActionResult } from "@/lib/forms";
 import { cn } from "@/lib/utils";
+import type { AssetKind } from "@/schemas/assets";
 import { customAnswersSchema, type CustomField } from "@/schemas/custom-fields";
 import {
   onboardingSubmissionSchema,
@@ -41,6 +43,8 @@ export function OnboardingForm({
   existing,
   headshotPreviewUrl,
   customFields,
+  requestedAssets,
+  existingAssets,
 }: {
   token: string;
   guestName: string;
@@ -48,9 +52,14 @@ export function OnboardingForm({
   existing: Existing;
   headshotPreviewUrl: string | null;
   customFields: CustomField[];
+  requestedAssets: AssetKind[];
+  existingAssets: { kind: AssetKind; file_name: string; size_bytes: number }[];
 }) {
   const [isPending, startTransition] = useTransition();
-  const [uploading, setUploading] = useState(false);
+  // Counts uploads in flight across the headshot and file pickers.
+  const [uploads, setUploads] = useState(0);
+  const uploading = uploads > 0;
+  const setUploading = (active: boolean) => setUploads((n) => Math.max(0, n + (active ? 1 : -1)));
   const schema = useMemo(
     () => onboardingSubmissionSchema.extend({ customAnswers: customAnswersSchema(customFields) }),
     [customFields],
@@ -80,6 +89,7 @@ export function OnboardingForm({
           ];
         }),
       ),
+      assets: {},
       releaseAccepted: false,
       releaseSignedName: "",
     },
@@ -214,6 +224,36 @@ export function OnboardingForm({
           ))}
         </CardContent>
       </Card>
+
+      {requestedAssets.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Files</CardTitle>
+            <CardDescription>Your host asked for these. All optional.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {requestedAssets.map((kind) => {
+              const previous = existingAssets.find((a) => a.kind === kind);
+              return (
+                <AssetUploader
+                  key={kind}
+                  token={token}
+                  kind={kind}
+                  existing={previous ? { fileName: previous.file_name, size: previous.size_bytes } : null}
+                  onUploadingChange={setUploading}
+                  onChange={(file) =>
+                    form.setValue(
+                      "assets",
+                      { ...form.getValues("assets"), [kind]: file },
+                      { shouldDirty: true },
+                    )
+                  }
+                />
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {customFields.length > 0 && (
         <Card>

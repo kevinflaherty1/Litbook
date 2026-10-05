@@ -7,6 +7,7 @@ import { fail, ok } from "@/lib/action-result";
 import { isPgError, PG } from "@/lib/errors";
 import { authedAction, orgAction } from "@/lib/safe-action";
 import { BillingNotConfiguredError, destroyOrganization } from "@/features/organizations/destroy";
+import { updateRequestedAssetsSchema } from "@/schemas/assets";
 import { deleteOrganizationSchema } from "@/schemas/billing";
 import {
   createOrganizationSchema,
@@ -149,6 +150,20 @@ export const updateBranding = orgAction(
       const { error: removeError } = await supabase.storage.from("org-branding").remove([current.logo_path]);
       if (removeError) console.error("[branding] could not remove old logo", removeError);
     }
+    refresh();
+    return ok(undefined);
+  },
+);
+
+export const updateRequestedAssets = orgAction(
+  updateRequestedAssetsSchema,
+  { roles: ["owner", "admin"] },
+  async (input, { supabase, org }) => {
+    const { error } = await supabase
+      .from("organizations")
+      .update({ requested_assets: [...new Set(input.kinds)] })
+      .eq("id", org.id);
+    if (error) throw error;
     refresh();
     return ok(undefined);
   },

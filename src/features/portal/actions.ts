@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyHostOfSubmission } from "@/features/portal/notify";
 import { getOnboardingContext } from "@/features/portal/queries";
 import { fieldErrorsOf } from "@/lib/safe-action";
+import { ASSET_SPECS, assetUploadSchema } from "@/schemas/assets";
 import { customAnswersSchema } from "@/schemas/custom-fields";
 import { HEADSHOT_EXTENSIONS, headshotUploadSchema, onboardingSubmissionSchema } from "@/schemas/portal";
 
@@ -42,6 +43,25 @@ export const createHeadshotUpload = publicAction(headshotUploadSchema, async (in
   if (ctx.is_locked) return fail(LOCKED);
 
   const path = `${ctx.organization_id}/${ctx.episode_guest_id}/${randomUUID()}.${HEADSHOT_EXTENSIONS[input.contentType]}`;
+  const { data, error } = await createAdminClient().storage.from("guest-assets").createSignedUploadUrl(path);
+  if (error) throw error;
+
+  return ok({ path: data.path, uploadToken: data.token });
+});
+
+/** Like createHeadshotUpload, for the extra files the workspace asked for. */
+export const createAssetUpload = publicAction(assetUploadSchema, async (input) => {
+  if (!(await withinLimits(input.token, "upload"))) return fail(SLOW_DOWN);
+
+  const ctx = await getOnboardingContext(input.token);
+  if (!ctx) return fail(LINK_INVALID);
+  if (ctx.is_locked) return fail(LOCKED);
+  if (!ctx.organization.requested_assets.includes(input.kind)) {
+    return fail("Your host isn't asking for this file anymore.");
+  }
+
+  const ext = ASSET_SPECS[input.kind].types[input.contentType];
+  const path = `${ctx.organization_id}/${ctx.episode_guest_id}/${input.kind}-${randomUUID()}.${ext}`;
   const { data, error } = await createAdminClient().storage.from("guest-assets").createSignedUploadUrl(path);
   if (error) throw error;
 
@@ -93,6 +113,12 @@ export const submitOnboarding = publicAction(onboardingSubmissionSchema, async (
       social_links: input.socialLinks,
       headshot_path: input.headshotPath,
       custom_answers: { ...keptAnswers, ...answers.data },
+      assets: Object.fromEntries(
+        Object.entries(input.assets).map(([kind, file]) => [
+          kind,
+          file ? { path: file.path, file_name: file.fileName } : null,
+        ]),
+      ),
       release_accepted: input.releaseAccepted,
       release_signed_name: input.releaseSignedName,
     },
@@ -103,17 +129,25 @@ export const submitOnboarding = publicAction(onboardingSubmissionSchema, async (
   if (isPgError(error, PG.noDataFound)) return fail(LINK_INVALID);
   if (isPgError(error, PG.objectNotInPrerequisiteState)) return fail(LOCKED);
   if (isPgError(error, PG.invalidParameter)) {
-    return fail("Your headshot didn't finish uploading. Please add it again.", {
-      headshotPath: ["Please upload your headshot again."],
+    return fail("One of your files didn't finish uploading. Please add it again.", {
+      headshotPath: input.headshotPath ? ["Please upload your headshot again."] : undefined,
     });
   }
   if (error) throw error;
 
   after(async () => {
     // A replaced headshot is no longer referenced; remove it.
-    if (input.headshotPath && previousHeadshot && previousHeadshot !== input.headshotPath) {
-      const { error: removeError } = await admin.storage.from("guest-assets").remove([previousHeadshot]);
-      if (removeError) console.error("[portal] could not remove old headshot", removeError);
+    // Replaced or removed files are no longer referenced; remove them.
+    const stale = ctx.assets.filter((a) => a.kind in input.assets && input.assets[a.kind]?.path !== a.path);
+    const unused = [
+      ...(input.headshotPath && previousHeadshot && previousHeadshot !== input.headshotPath
+        ? [previousHeadshot]
+        : []),
+      ...stale.map((a) => a.path),
+    ];
+    if (unused.length) {
+      const { error: removeError } = await admin.storage.from("guest-assets").remove(unused);
+      if (removeError) console.error("[portal] could not remove replaced files", removeError);
     }
     await notifyHostOfSubmission(ctx, { displayName: input.displayName, isUpdate: !!ctx.submission });
   });

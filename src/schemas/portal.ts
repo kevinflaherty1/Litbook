@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { submittedAssetsSchema } from "@/schemas/assets";
 import { rawCustomAnswersSchema } from "@/schemas/custom-fields";
 
 export const onboardingTokenSchema = z.string().min(32).max(128);
@@ -86,6 +87,8 @@ export const onboardingSubmissionSchema = z.object({
     .transform((v) => v || null),
   /** Answers to the workspace's own questions, checked against them by the server. */
   customAnswers: rawCustomAnswersSchema,
+  /** Extra files the workspace asked for. */
+  assets: submittedAssetsSchema,
   releaseAccepted: z.boolean().refine((v) => v, "Please agree to the release to continue."),
   releaseSignedName: z
     .string()

@@ -30,6 +30,19 @@ export const getBooking = cache(async (orgId: string, bookingId: string) => {
   return { ...booking, submission: submissions[0] ?? null };
 });
 
+/** Extra files a guest uploaded for a booking (RLS-scoped). */
+export async function getBookingAssets(orgId: string, bookingId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("submission_assets")
+    .select("kind, path, file_name, content_type, size_bytes, updated_at")
+    .eq("organization_id", orgId)
+    .eq("episode_guest_id", bookingId)
+    .order("kind");
+  if (error) throw error;
+  return data;
+}
+
 export type BookingDetail = NonNullable<Awaited<ReturnType<typeof getBooking>>>;
 export type Submission = NonNullable<BookingDetail["submission"]>;
 
@@ -50,7 +63,10 @@ export async function getEpisodeSubmissions(orgId: string, episodeId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("episode_guests")
-    .select(`id, status, created_at, guests!inner(full_name), submissions!inner(${SUBMISSION_COLUMNS})`)
+    .select(
+      `id, status, created_at, guests!inner(full_name), submissions!inner(${SUBMISSION_COLUMNS}),
+       submission_assets(kind, path, file_name)`,
+    )
     .eq("organization_id", orgId)
     .eq("episode_id", episodeId)
     .in("status", ["assets_submitted", "ready"])
@@ -64,14 +80,15 @@ export async function getEpisodeSubmissions(orgId: string, episodeId: string) {
         bookingId: b.id,
         headshotPath: submission.headshot_path,
         customAnswers: submission.custom_answers,
+        files: b.submission_assets,
         assets: toGuestAssets(b.guests.full_name, submission),
       },
     ];
   });
 }
 
-/** A short-lived URL to show a headshot to a teammate (RLS-checked by Storage). */
-export async function getHeadshotUrl(
+/** A short-lived URL to show a guest file to a teammate (RLS-checked by Storage). */
+export async function getGuestFileUrl(
   path: string | null,
   options?: { download?: string; expiresIn?: number },
 ) {
@@ -85,7 +102,7 @@ export async function getHeadshotUrl(
       options?.download ? { download: options.download } : undefined,
     );
   if (error) {
-    console.error("[vault] could not sign headshot URL", error);
+    console.error("[vault] could not sign file URL", error);
     return null;
   }
   return data.signedUrl;

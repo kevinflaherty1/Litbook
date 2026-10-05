@@ -2,7 +2,7 @@
 -- Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -112,6 +112,42 @@ select is((select s.custom_answers ->> f.id::text
            from public.submissions s, public.custom_fields f
            where f.label = 'Topic?' and s.episode_guest_id = 'ea000000-0000-0000-0000-000000000000'),
           'AI', 'answers are saved with the submission');
+
+-- ---------------------------------------------------------------------------
+-- Phase 10: extra guest files
+-- ---------------------------------------------------------------------------
+create function pg_temp.submit_with_assets(p_assets jsonb) returns void language sql as $$
+  select public.submit_onboarding('guest-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    jsonb_build_object('display_name', 'G', 'short_bio', 'b', 'release_accepted', true,
+                       'release_signed_name', 'G', 'assets', p_assets));
+$$;
+insert into storage.objects (bucket_id, name, metadata) values
+  ('guest-assets', '0a000000-0000-0000-0000-000000000000/ea000000-0000-0000-0000-000000000000/kit.pdf',
+   '{"mimetype": "application/pdf", "size": 2048}'),
+  ('guest-assets', '0a000000-0000-0000-0000-000000000000/ea000000-0000-0000-0000-000000000000/fake.pdf',
+   '{"mimetype": "text/html", "size": 10}');
+
+set local role service_role;
+select throws_ok($$select pg_temp.submit_with_assets('{"media_kit": {"path": "0a000000-0000-0000-0000-000000000000/ea000000-0000-0000-0000-000000000000/kit.pdf"}}')$$,
+                 '22023', null, 'a file kind the workspace did not request is rejected');
+reset role;
+update public.organizations set requested_assets = '{media_kit}' where id = '0a000000-0000-0000-0000-000000000000';
+set local role service_role;
+select throws_ok($$select pg_temp.submit_with_assets('{"media_kit": {"path": "0a000000-0000-0000-0000-000000000000/ea000000-0000-0000-0000-000000000000/fake.pdf"}}')$$,
+                 '22023', null, 'a file whose stored type does not match its kind is rejected');
+select throws_ok($$select pg_temp.submit_with_assets('{"media_kit": {"path": "0b000000-0000-0000-0000-000000000000/x/kit.pdf"}}')$$,
+                 '22023', null, 'a file outside the booking''s folder is rejected');
+select lives_ok($$select pg_temp.submit_with_assets('{"media_kit": {"path": "0a000000-0000-0000-0000-000000000000/ea000000-0000-0000-0000-000000000000/kit.pdf", "file_name": "Press kit.pdf"}}')$$,
+                'a requested file is saved');
+reset role;
+select results_eq($$select file_name, content_type, size_bytes from public.submission_assets$$,
+                  $$values ('Press kit.pdf'::text, 'application/pdf'::text, 2048::bigint)$$,
+                  'type and size come from the stored object');
+
+select pg_temp.login('c0000000-0000-0000-0000-000000000000', 'carol@example.com');
+set local role authenticated;
+select throws_ok($$delete from public.submission_assets$$, '42501', null, 'hosts cannot change guest files directly');
+reset role;
 
 -- ---------------------------------------------------------------------------
 -- Phase 9: account deletion

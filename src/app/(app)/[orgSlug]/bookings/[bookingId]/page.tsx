@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download, ExternalLink, FileSignature, ImageOff } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, FileSignature, ImageOff, Paperclip } from "lucide-react";
 
 import { CopyButton } from "@/components/shared/copy-button";
 import { LocalDateTime } from "@/components/shared/local-date-time";
@@ -12,12 +12,13 @@ import { BookingReadyButton } from "@/features/bookings/components/booking-ready
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
 import { CopyableText } from "@/features/bookings/components/copyable-text";
 import { SubmissionContentForm } from "@/features/bookings/components/submission-content-form";
-import { getBooking, getHeadshotUrl, toGuestAssets } from "@/features/bookings/queries";
+import { getBooking, getBookingAssets, getGuestFileUrl, toGuestAssets } from "@/features/bookings/queries";
 import { answeredQuestions, listCustomFields } from "@/features/custom-fields/queries";
 import { requireOrgMembership } from "@/features/organizations/queries";
 import { uuidParamOr404 } from "@/lib/params";
 import { guestShowNotes } from "@/lib/show-notes";
 import { socialEntries } from "@/lib/social";
+import { ASSET_SPECS, formatBytes } from "@/schemas/assets";
 
 export async function generateMetadata({
   params,
@@ -37,10 +38,19 @@ export default async function BookingPage({ params }: PageProps<"/[orgSlug]/book
   const s = booking.submission;
   const base = `/${org.slug}/bookings/${booking.id}`;
   const episodeHref = `/${org.slug}/episodes/${booking.episodes.id}`;
-  const [headshotUrl, customFields] = await Promise.all([
-    getHeadshotUrl(s?.headshot_path ?? null),
+  const [headshotUrl, customFields, files] = await Promise.all([
+    getGuestFileUrl(s?.headshot_path ?? null),
     listCustomFields(org.id),
+    getBookingAssets(org.id, booking.id),
   ]);
+  // Previews for images and audio; everything else is a download.
+  const previews = await Promise.all(
+    files.map((f) =>
+      f.content_type.startsWith("image/") || f.content_type.startsWith("audio/")
+        ? getGuestFileUrl(f.path, { expiresIn: 600 })
+        : null,
+    ),
+  );
   const answers = s ? answeredQuestions(customFields, s.custom_answers) : [];
   const assets = s ? toGuestAssets(booking.guests.full_name, s) : null;
   const socials = assets ? socialEntries(assets.socialLinks) : [];
@@ -154,6 +164,46 @@ export default async function BookingPage({ params }: PageProps<"/[orgSlug]/book
               </div>
             </CardContent>
           </Card>
+
+          {files.length > 0 && (
+            <Card id="files">
+              <CardHeader>
+                <CardTitle>Files</CardTitle>
+                <CardDescription>Extra files {booking.guests.full_name} uploaded.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                {files.map((f, i) => (
+                  <div key={f.kind} className="grid gap-2 rounded-md border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Paperclip className="size-4 text-muted-foreground" />
+                      <span className="font-medium">{ASSET_SPECS[f.kind].label}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                        {f.file_name} · {formatBytes(f.size_bytes)}
+                      </span>
+                      <Button asChild variant="outline" size="sm">
+                        <a href={`${base}/files/${f.kind}`}>
+                          <Download /> Download {ASSET_SPECS[f.kind].label.toLowerCase()}
+                        </a>
+                      </Button>
+                    </div>
+                    {previews[i] && f.content_type.startsWith("image/") && (
+                      // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL
+                      <img
+                        src={previews[i]}
+                        alt={`${ASSET_SPECS[f.kind].label} from ${assets.name}`}
+                        className="max-h-32 w-fit max-w-full rounded border bg-muted object-contain"
+                      />
+                    )}
+                    {previews[i] && f.content_type.startsWith("audio/") && (
+                      <audio controls preload="none" src={previews[i]} className="w-full">
+                        <track kind="captions" />
+                      </audio>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {answers.length > 0 && (
             <Card id="answers">
