@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 
 import { LocalDateTime } from "@/components/shared/local-date-time";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BookingStatusBadge } from "@/features/bookings/components/booking-status-badge";
@@ -42,7 +43,14 @@ export default async function GuestPage({ params }: PageProps<"/[orgSlug]/guests
           title={guest.full_name}
           description={guest.email ?? undefined}
           actions={
-            canManage && <DeleteGuestButton orgId={org.id} guestId={guest.id} name={guest.full_name} />
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <a href={`/${org.slug}/guests/${guest.id}/export`} title="Everything held about this guest">
+                  <Download /> Export data
+                </a>
+              </Button>
+              {canManage && <DeleteGuestButton orgId={org.id} guestId={guest.id} name={guest.full_name} />}
+            </div>
           }
         />
       </div>

@@ -158,6 +158,22 @@ invited teammate can.
   client and again on the server, and stored in `submissions.custom_answers`.
   They appear in the vault and in the episode export's `guests.md`.
 
+## Phase 9: Data export and account deletion (GDPR) ✅
+
+- Settings → Data and privacy (owners and admins): one streamed ZIP with
+  every record as JSON (organization, members, invitations, episodes,
+  guests, bookings, submissions with release evidence, questions) and
+  every uploaded file. Token hashes never leave the database.
+- Guest page → Export data: everything held about one guest (record,
+  bookings, answers, signed releases as PDFs, files), for subject access
+  requests. Deleting a guest already removes their rows and files.
+- `/account`: profile, workspaces, "Download my data" (JSON) and "Delete my
+  account". Deleting removes the user from every workspace and deletes
+  workspaces where they're the only member (cancelling any subscription and
+  removing files). It's blocked while they're the last owner of a
+  workspace with other members, in the app and by the existing
+  keep-an-owner trigger.
+
 ## Post-MVP backlog
 
 - Calendar booking (guest picks a recording slot), plus Google Calendar and
@@ -165,4 +181,3 @@ invited teammate can.
 - Custom domain for the guest portal.
 - Multiple asset types: intro audio, company logos, pre-interview questionnaire.
 - Plan tiers: seats, episodes per month.
-- Account-deletion flow and data export (GDPR).

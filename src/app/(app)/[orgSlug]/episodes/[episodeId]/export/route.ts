@@ -1,10 +1,10 @@
-import { Zip, ZipPassThrough, strToU8 } from "fflate";
 import type { NextRequest } from "next/server";
 
 import { getEpisodeSubmissions } from "@/features/bookings/queries";
 import { answeredQuestions, listCustomFields } from "@/features/custom-fields/queries";
-import { attachment, getOrgForRoute, notFoundResponse } from "@/lib/route-auth";
+import { getOrgForRoute, notFoundResponse } from "@/lib/route-auth";
 import { fileSlug, guestsMarkdown } from "@/lib/show-notes";
+import { zipResponse } from "@/lib/zip-stream";
 
 /**
  * Streams a ZIP of the episode's guest headshots plus guests.md. Images are
@@ -43,55 +43,28 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/[orgSlug]/episo
     return { ...g, headshotFile: `headshots/${name}` };
   });
 
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const zip = new Zip((err, chunk, final) => {
-        if (err) return controller.error(err);
-        controller.enqueue(chunk);
-        if (final) controller.close();
-      });
-      try {
-        const md = new ZipPassThrough("guests.md");
-        zip.add(md);
-        md.push(
-          strToU8(
-            guestsMarkdown(
-              episode.title,
-              files.map((f) => ({
-                ...f.assets,
-                headshotFile: f.headshotFile,
-                answers: answeredQuestions(customFields, f.customAnswers),
-              })),
-            ),
-          ),
-          true,
-        );
-
-        for (const f of files) {
-          if (!f.headshotPath || !f.headshotFile) continue;
-          const { data: blob, error: downloadError } = await supabase.storage
-            .from("guest-assets")
-            .download(f.headshotPath);
-          if (downloadError) {
-            console.error("[export] could not download headshot", f.headshotPath, downloadError);
-            continue;
-          }
-          const entry = new ZipPassThrough(f.headshotFile);
-          zip.add(entry);
-          entry.push(new Uint8Array(await blob.arrayBuffer()), true);
-        }
-        zip.end();
-      } catch (err) {
-        controller.error(err);
+  return zipResponse(`${fileSlug(episode.title)}-guests.zip`, async (add) => {
+    add(
+      "guests.md",
+      guestsMarkdown(
+        episode.title,
+        files.map((f) => ({
+          ...f.assets,
+          headshotFile: f.headshotFile,
+          answers: answeredQuestions(customFields, f.customAnswers),
+        })),
+      ),
+    );
+    for (const f of files) {
+      if (!f.headshotPath || !f.headshotFile) continue;
+      const { data: blob, error: downloadError } = await supabase.storage
+        .from("guest-assets")
+        .download(f.headshotPath);
+      if (downloadError) {
+        console.error("[export] could not download headshot", f.headshotPath, downloadError);
+        continue;
       }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "application/zip",
-      "Content-Disposition": attachment(`${fileSlug(episode.title)}-guests.zip`),
-      "Cache-Control": "private, no-store",
-    },
+      add(f.headshotFile, new Uint8Array(await blob.arrayBuffer()));
+    }
   });
 }

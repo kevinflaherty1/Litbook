@@ -2,7 +2,7 @@
 -- Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -112,6 +112,16 @@ select is((select s.custom_answers ->> f.id::text
            from public.submissions s, public.custom_fields f
            where f.label = 'Topic?' and s.episode_guest_id = 'ea000000-0000-0000-0000-000000000000'),
           'AI', 'answers are saved with the submission');
+
+-- ---------------------------------------------------------------------------
+-- Phase 9: account deletion
+-- ---------------------------------------------------------------------------
+select throws_ok($$delete from auth.users where id = 'a0000000-0000-0000-0000-000000000000'$$,
+                 '23514', null, 'the last owner of a workspace with other members cannot be deleted');
+delete from auth.users where id = 'c0000000-0000-0000-0000-000000000000';
+select is((select count(*)::int from public.organization_members
+           where user_id = 'c0000000-0000-0000-0000-000000000000'),
+          0, 'deleting a member''s account removes their memberships');
 
 select * from finish();
 rollback;

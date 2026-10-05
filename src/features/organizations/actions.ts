@@ -6,10 +6,7 @@ import { redirect } from "next/navigation";
 import { fail, ok } from "@/lib/action-result";
 import { isPgError, PG } from "@/lib/errors";
 import { authedAction, orgAction } from "@/lib/safe-action";
-import { serverEnv } from "@/lib/env.server";
-import { billingEnabled, getStripe } from "@/lib/stripe";
-import { removeStoragePrefix } from "@/lib/storage";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { BillingNotConfiguredError, destroyOrganization } from "@/features/organizations/destroy";
 import { deleteOrganizationSchema } from "@/schemas/billing";
 import {
   createOrganizationSchema,
@@ -77,35 +74,19 @@ export const updateReleaseForm = orgAction(
 export const deleteOrganization = orgAction(
   deleteOrganizationSchema,
   { roles: ["owner"] },
-  async (input, { supabase, org }) => {
+  async (input, { org }) => {
     if (input.confirmSlug.toLowerCase() !== org.slug) {
       return fail("That doesn't match the workspace URL.", { confirmSlug: [`Type ${org.slug} to confirm.`] });
     }
 
-    const { data: row, error } = await supabase
-      .from("organizations")
-      .select("stripe_subscription_id, subscription_status")
-      .eq("id", org.id)
-      .single();
-    if (error) throw error;
-
-    // Stop billing first: if this fails, nothing has been deleted yet.
-    if (row.stripe_subscription_id && row.subscription_status && row.subscription_status !== "canceled") {
-      if (!billingEnabled || !serverEnv.STRIPE_SECRET_KEY) {
+    try {
+      await destroyOrganization(org.id);
+    } catch (error) {
+      if (error instanceof BillingNotConfiguredError) {
         return fail("This workspace has a subscription but billing isn't configured here. Contact support.");
       }
-      try {
-        await getStripe().subscriptions.cancel(row.stripe_subscription_id);
-      } catch (stripeError) {
-        // Already cancelled or deleted in Stripe: fine to proceed.
-        if ((stripeError as { code?: string }).code !== "resource_missing") throw stripeError;
-      }
+      throw error;
     }
-
-    await Promise.all([removeStoragePrefix(`${org.id}/`), removeStoragePrefix(`${org.id}/`, "org-branding")]);
-    // organizations has no DELETE grant for signed-in users; the owner check above authorises this.
-    const { error: deleteError } = await createAdminClient().from("organizations").delete().eq("id", org.id);
-    if (deleteError) throw deleteError;
 
     redirect("/dashboard");
   },

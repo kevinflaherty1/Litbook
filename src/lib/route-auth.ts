@@ -15,13 +15,16 @@ export async function getOrgForRoute(slug: string, ...ids: string[]) {
   const user = await getCurrentUser();
   if (!user) return null;
   const supabase = await createClient();
-  const { data: org, error } = await supabase
+  const { data, error } = await supabase
     .from("organizations")
-    .select("id, name, slug")
+    .select("id, name, slug, organization_members!inner(role)")
     .eq("slug", slug)
+    .eq("organization_members.user_id", user.id)
     .maybeSingle();
   if (error) throw error;
-  return org ? { supabase, org } : null;
+  if (!data) return null;
+  const { organization_members, ...org } = data;
+  return { supabase, org, user, role: organization_members[0].role };
 }
 
 export function notFoundResponse() {

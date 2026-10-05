@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Download } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomFieldsManager } from "@/features/custom-fields/components/custom-fields-manager";
 import { listCustomFields } from "@/features/custom-fields/queries";
@@ -83,10 +86,35 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
           <GuestRemindersToggle orgId={org.id} enabled={org.guest_reminders_enabled} disabled={!canManage} />
         </CardContent>
       </Card>
+      {canManage && (
+        <Card id="data">
+          <CardHeader>
+            <CardTitle>Data and privacy</CardTitle>
+            <CardDescription>
+              Download everything this workspace holds: episodes, guests, bookings, submissions, signed
+              release evidence, answers, and every uploaded file. To answer a guest&apos;s request for their
+              own data, use Export on their guest page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-fit">
+              <a href={`/${org.slug}/settings/export`}>
+                <Download /> Export workspace data
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Your profile</CardTitle>
-          <CardDescription>Applies across all your workspaces.</CardDescription>
+          <CardDescription>
+            Applies across all your workspaces. Download or delete your account on{" "}
+            <Link href="/account" className="underline underline-offset-4">
+              your account page
+            </Link>
+            .
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ProfileForm fullName={profile?.full_name ?? ""} email={user.email} />
