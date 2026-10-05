@@ -373,6 +373,7 @@ export type Database = {
           id: string;
           logo_path: string | null;
           name: string;
+          plan: string | null;
           portal_welcome: string | null;
           release_form_text: string;
           release_form_version: number;
@@ -395,6 +396,7 @@ export type Database = {
           id?: string;
           logo_path?: string | null;
           name: string;
+          plan?: string | null;
           portal_welcome?: string | null;
           release_form_text?: string;
           release_form_version?: number;
@@ -417,6 +419,7 @@ export type Database = {
           id?: string;
           logo_path?: string | null;
           name?: string;
+          plan?: string | null;
           portal_welcome?: string | null;
           release_form_text?: string;
           release_form_version?: number;
@@ -641,6 +644,7 @@ export type Database = {
           p_customer: string;
           p_event_at: string;
           p_org: string;
+          p_plan?: string;
           p_price: string;
           p_status: Database["public"]["Enums"]["subscription_status"];
           p_subscription: string;
@@ -680,6 +684,7 @@ export type Database = {
           id: string;
           logo_path: string | null;
           name: string;
+          plan: string | null;
           portal_welcome: string | null;
           release_form_text: string;
           release_form_version: number;
@@ -713,6 +718,8 @@ export type Database = {
         Returns: string;
       };
       org_has_active_subscription: { Args: { p_org: string }; Returns: boolean };
+      org_plan_usage: { Args: { p_org: string }; Returns: Json };
+      plan_limits: { Args: { p_plan: string }; Returns: Record<string, unknown> };
       record_onboarding_visit: { Args: { p_token: string }; Returns: undefined };
       set_onboarding_token: {
         Args: { p_episode_guest_id: string; p_token: string; p_ttl?: string };

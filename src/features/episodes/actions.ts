@@ -3,8 +3,10 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireActiveSubscription } from "@/features/billing/gate";
+import { getOrgPlan, requireActiveSubscription } from "@/features/billing/gate";
 import { fail, ok } from "@/lib/action-result";
+import { isPgError, PG } from "@/lib/errors";
+import { limitMessage } from "@/lib/plans";
 import { orgAction } from "@/lib/safe-action";
 import { removeStoragePrefix } from "@/lib/storage";
 import { createEpisodeSchema, deleteEpisodeSchema, updateEpisodeSchema } from "@/schemas/episode";
@@ -26,6 +28,8 @@ export const createEpisode = orgAction(createEpisodeSchema, {}, async (input, { 
     })
     .select("id")
     .single();
+  if (isPgError(error, PG.planLimitReached))
+    return fail(limitMessage("episodes", await getOrgPlan(supabase, org.id)));
   if (error) throw error;
 
   redirect(`/${org.slug}/episodes/${data.id}`);

@@ -189,9 +189,26 @@ invited teammate can.
   episode export puts them under `files/`; workspace and guest exports
   include them.
 
+## Phase 11: Plan tiers ✅
+
+- Starter (2 team members, 5 new episodes a month) and Pro (10 team
+  members, unlimited episodes, plus branding, guest questions and extra
+  files). One Stripe price per plan; the webhook maps the price to
+  `organizations.plan`.
+- Limits are enforced in Postgres triggers, so no client can bypass them:
+  seats count members plus pending invitations (an invitation being
+  accepted isn't counted twice), and new episodes are counted per UTC
+  calendar month. Both lock the org row so concurrent requests can't
+  overshoot. The app turns the error into a plan-specific message.
+- Pro features are gated in the app. After a downgrade their settings and
+  past answers are kept, but guests don't see them; requested files can
+  still be turned off.
+- The billing page shows the current plan, usage against its limits, and
+  both plans; switching plans goes through the Stripe Customer Portal.
+- With billing off (no Stripe keys) there are no limits.
+
 ## Post-MVP backlog
 
 - Calendar booking (guest picks a recording slot), plus Google Calendar and
   Zoom or Riverside links.
 - Custom domain for the guest portal.
-- Plan tiers: seats, episodes per month.

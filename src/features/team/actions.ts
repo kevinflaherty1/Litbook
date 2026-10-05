@@ -3,10 +3,12 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { getOrgPlan } from "@/features/billing/gate";
 import { fail, ok } from "@/lib/action-result";
 import { escapeHtml, sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { isPgError, PG } from "@/lib/errors";
+import { limitMessage } from "@/lib/plans";
 import { authedAction, orgAction } from "@/lib/safe-action";
 import {
   acceptInvitationSchema,
@@ -33,6 +35,8 @@ export const inviteMember = orgAction(
       p_email: input.email,
       p_role: input.role,
     });
+    if (isPgError(error, PG.planLimitReached))
+      return fail(limitMessage("seats", await getOrgPlan(supabase, org.id)));
     if (error) throw error;
 
     const inviteUrl = new URL(`/invite/${token}`, env.NEXT_PUBLIC_SITE_URL).toString();
@@ -121,6 +125,11 @@ export const acceptInvitation = authedAction(acceptInvitationSchema, async (inpu
   const { data: orgId, error } = await supabase.rpc("accept_invitation", { p_token: input.token });
   if (isPgError(error, PG.noDataFound)) {
     return fail("This invitation is invalid, expired, or was sent to a different email address.");
+  }
+  if (isPgError(error, PG.planLimitReached)) {
+    return fail(
+      "This workspace has no free seats on its plan. Ask the person who invited you to upgrade or free up a seat.",
+    );
   }
   if (error) throw error;
 

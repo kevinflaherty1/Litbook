@@ -8,7 +8,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const WEBHOOK_SECRET = "whsec_integration_test";
 process.env.STRIPE_SECRET_KEY = "sk_test_integration";
 process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-process.env.STRIPE_PRICE_ID = "price_pro";
+process.env.STRIPE_PRICE_PRO = "price_pro";
+process.env.STRIPE_PRICE_STARTER = "price_starter";
 
 const { POST } = await import("@/app/api/webhooks/stripe/route");
 
@@ -26,7 +27,12 @@ function event(type: string, object: Record<string, unknown>, at = created++) {
   return { id: `evt_${randomUUID()}`, object: "event", type, created: at, data: { object } };
 }
 
-function subscription(status: string, periodEnd: number, extra: Record<string, unknown> = {}) {
+function subscription(
+  status: string,
+  periodEnd: number,
+  extra: Record<string, unknown> = {},
+  price = "price_pro",
+) {
   return {
     id: subscriptionId,
     object: "subscription",
@@ -34,7 +40,7 @@ function subscription(status: string, periodEnd: number, extra: Record<string, u
     status,
     cancel_at_period_end: false,
     metadata: { organization_id: orgId },
-    items: { data: [{ price: { id: "price_pro" }, current_period_end: periodEnd }] },
+    items: { data: [{ price: { id: price }, current_period_end: periodEnd }] },
     ...extra,
   };
 }
@@ -56,7 +62,7 @@ async function billing() {
   const { data, error } = await admin
     .from("organizations")
     .select(
-      "stripe_customer_id, stripe_subscription_id, stripe_price_id, subscription_status, current_period_end, cancel_at_period_end",
+      "stripe_customer_id, stripe_subscription_id, stripe_price_id, subscription_status, current_period_end, cancel_at_period_end, plan",
     )
     .eq("id", orgId)
     .single();
@@ -107,6 +113,7 @@ describe("POST /api/webhooks/stripe", () => {
     expect(b).toMatchObject({
       subscription_status: "trialing",
       stripe_price_id: "price_pro",
+      plan: "pro",
       cancel_at_period_end: false,
     });
     expect(new Date(b.current_period_end!).getTime()).toBe(trialEnd * 1000);
@@ -117,6 +124,19 @@ describe("POST /api/webhooks/stripe", () => {
     expect((await send(evt)).body).toEqual({ received: true });
     expect((await send(evt)).body).toEqual({ received: true, duplicate: true });
     expect((await billing()).subscription_status).toBe("active");
+  });
+
+  it("maps the price to a plan, and keeps the plan for unknown prices", async () => {
+    await send(
+      event("customer.subscription.updated", subscription("active", 2_000_000_000, {}, "price_starter")),
+    );
+    expect(await billing()).toMatchObject({ plan: "starter", stripe_price_id: "price_starter" });
+    await send(
+      event("customer.subscription.updated", subscription("active", 2_000_000_000, {}, "price_legacy")),
+    );
+    expect(await billing()).toMatchObject({ plan: "starter", stripe_price_id: "price_legacy" });
+    await send(event("customer.subscription.updated", subscription("active", 2_000_000_000)));
+    expect((await billing()).plan).toBe("pro");
   });
 
   it("ignores events older than the last one applied", async () => {

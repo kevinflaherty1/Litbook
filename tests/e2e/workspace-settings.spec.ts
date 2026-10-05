@@ -12,6 +12,10 @@ test("billing is off without Stripe keys, and an owner can delete the workspace"
   await expect(page.getByRole("link", { name: "Billing" })).toHaveCount(0);
   await page.goto(`/${slug}/settings/billing`);
   await expect(page.getByText("Billing isn't set up")).toBeVisible();
+  // Plans are listed for reference, and nothing is limited.
+  await expect(page.getByTestId("plan-starter")).toContainText("5 new episodes a month");
+  await expect(page.getByTestId("plan-pro")).toContainText("Unlimited episodes");
+  await expect(page.getByTestId("plan-usage")).toContainText("1 / unlimited");
 
   // Collect some data, including a stored headshot.
   await page.goto(`/${slug}`);

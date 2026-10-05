@@ -9,6 +9,7 @@ export const PG = {
   noDataFound: "P0002",
   invalidParameter: "22023",
   objectNotInPrerequisiteState: "55000",
+  planLimitReached: "53400",
 } as const;
 
 export function isPgError(error: unknown, code: string): error is PostgrestError {

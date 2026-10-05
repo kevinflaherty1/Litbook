@@ -19,14 +19,20 @@ const serverSchema = z
     // CI), there's no paywall and the billing page says billing isn't set up.
     STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
     STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+    // One Stripe price per plan. STRIPE_PRICE_ID is the pre-tiers name for Pro.
+    STRIPE_PRICE_STARTER: z.string().startsWith("price_").optional(),
+    STRIPE_PRICE_PRO: z.string().startsWith("price_").optional(),
     STRIPE_PRICE_ID: z.string().startsWith("price_").optional(),
     STRIPE_TRIAL_DAYS: z.coerce.number().int().min(0).max(730).default(14),
   })
   .superRefine((env, ctx) => {
-    if (env.STRIPE_SECRET_KEY && (!env.STRIPE_WEBHOOK_SECRET || !env.STRIPE_PRICE_ID)) {
+    if (
+      env.STRIPE_SECRET_KEY &&
+      (!env.STRIPE_WEBHOOK_SECRET || !(env.STRIPE_PRICE_PRO || env.STRIPE_PRICE_ID))
+    ) {
       ctx.addIssue({
         code: "custom",
-        message: "STRIPE_WEBHOOK_SECRET and STRIPE_PRICE_ID are required when STRIPE_SECRET_KEY is set.",
+        message: "STRIPE_WEBHOOK_SECRET and STRIPE_PRICE_PRO are required when STRIPE_SECRET_KEY is set.",
       });
     }
   });
@@ -39,6 +45,8 @@ export const serverEnv = serverSchema.parse({
   CRON_SECRET: process.env.CRON_SECRET || undefined,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || undefined,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
+  STRIPE_PRICE_STARTER: process.env.STRIPE_PRICE_STARTER || undefined,
+  STRIPE_PRICE_PRO: process.env.STRIPE_PRICE_PRO || undefined,
   STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID || undefined,
   STRIPE_TRIAL_DAYS: process.env.STRIPE_TRIAL_DAYS || undefined,
 });

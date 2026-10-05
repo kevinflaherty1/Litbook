@@ -6,23 +6,24 @@ import { fail } from "@/lib/action-result";
 import { env } from "@/lib/env";
 import { serverEnv } from "@/lib/env.server";
 import { orgAction } from "@/lib/safe-action";
-import { billingEnabled, getStripe } from "@/lib/stripe";
+import { billingEnabled, getStripe, priceForPlan } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { billingActionSchema } from "@/schemas/billing";
+import { billingActionSchema, checkoutSchema } from "@/schemas/billing";
 
 const NOT_CONFIGURED = "Billing isn't set up for this deployment.";
 const LIVE_STATUSES = ["trialing", "active", "past_due", "unpaid", "paused"];
 
 /**
- * Sends an owner/admin to Stripe Checkout for Litbook Pro. Creates the Stripe
+ * Sends an owner/admin to Stripe Checkout for the chosen plan. Creates the Stripe
  * customer on first use. If the org already has a live subscription, sends
  * them to the Customer Portal instead, so nobody subscribes twice.
  */
 export const startCheckout = orgAction(
-  billingActionSchema,
+  checkoutSchema,
   { roles: ["owner", "admin"] },
-  async (_input, { supabase, org, user }) => {
-    if (!billingEnabled || !serverEnv.STRIPE_PRICE_ID) return fail(NOT_CONFIGURED);
+  async (input, { supabase, org, user }) => {
+    const price = priceForPlan(input.plan);
+    if (!billingEnabled || !price) return fail(NOT_CONFIGURED);
     const stripe = getStripe();
 
     const { data: row, error } = await supabase
@@ -60,7 +61,7 @@ export const startCheckout = orgAction(
       mode: "subscription",
       customer: customerId,
       client_reference_id: org.id,
-      line_items: [{ price: serverEnv.STRIPE_PRICE_ID, quantity: 1 }],
+      line_items: [{ price, quantity: 1 }],
       subscription_data: {
         metadata: { organization_id: org.id },
         ...(serverEnv.STRIPE_TRIAL_DAYS > 0 ? { trial_period_days: serverEnv.STRIPE_TRIAL_DAYS } : {}),

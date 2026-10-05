@@ -25,10 +25,13 @@ export function CustomFieldsManager({
   orgId,
   fields,
   disabled,
+  canAdd = true,
 }: {
   orgId: string;
   fields: Row[];
   disabled: boolean;
+  /** False when the plan doesn't include questions: existing ones can still be edited or archived. */
+  canAdd?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const active = fields.filter((f) => !f.archived_at);
@@ -109,7 +112,7 @@ export function CustomFieldsManager({
         </ol>
       )}
 
-      {!disabled && (
+      {!disabled && canAdd && (
         <CustomFieldDialog
           orgId={orgId}
           trigger={

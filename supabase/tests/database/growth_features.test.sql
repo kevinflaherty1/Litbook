@@ -2,7 +2,7 @@
 -- Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(33);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -148,6 +148,62 @@ select pg_temp.login('c0000000-0000-0000-0000-000000000000', 'carol@example.com'
 set local role authenticated;
 select throws_ok($$delete from public.submission_assets$$, '42501', null, 'hosts cannot change guest files directly');
 reset role;
+
+-- ---------------------------------------------------------------------------
+-- Phase 11: plan tiers
+-- ---------------------------------------------------------------------------
+select pg_temp.login('a0000000-0000-0000-0000-000000000000', 'alice@example.com');
+set local role authenticated;
+select throws_ok($$update public.organizations set plan = 'pro' where id = '0a000000-0000-0000-0000-000000000000'$$,
+                 '42501', null, 'signed-in users cannot change the plan');
+select lives_ok($$select public.create_invitation('0a000000-0000-0000-0000-000000000000', 'dan@example.com')$$,
+                'no plan (billing off): no seat limit');
+reset role;
+
+set local role service_role;
+select is(public.apply_stripe_subscription('0a000000-0000-0000-0000-000000000000', 'cus_a', 'sub_a', 'price_s',
+                                            'active', now() + interval '30 days', false, now(), 'starter'),
+          '0a000000-0000-0000-0000-000000000000'::uuid, 'the webhook records the plan');
+reset role;
+select is((select plan from public.organizations where id = '0a000000-0000-0000-0000-000000000000'),
+          'starter', 'the plan is stored');
+
+select pg_temp.login('a0000000-0000-0000-0000-000000000000', 'alice@example.com');
+set local role authenticated;
+select throws_ok($$select public.create_invitation('0a000000-0000-0000-0000-000000000000', 'erin@example.com')$$,
+                 '53400', null, 'Starter: members plus pending invitations are capped at 2 seats');
+select lives_ok($$insert into public.episodes (organization_id, title)
+                  select '0a000000-0000-0000-0000-000000000000', 'Ep ' || n from generate_series(2, 5) n$$,
+                'Starter: up to 5 new episodes a month');
+select throws_ok($$insert into public.episodes (organization_id, title)
+                   values ('0a000000-0000-0000-0000-000000000000', 'Ep 6')$$,
+                 '53400', null, 'Starter: the 6th episode in a month is refused');
+select is((public.org_plan_usage('0a000000-0000-0000-0000-000000000000') ->> 'episodes_this_month')::int,
+          5, 'usage counts this month''s episodes');
+reset role;
+
+select pg_temp.login('b0000000-0000-0000-0000-000000000000', 'bob@example.com');
+set local role authenticated;
+select is(public.org_plan_usage('0a000000-0000-0000-0000-000000000000'), null,
+          'other workspaces cannot read usage');
+reset role;
+update public.organizations set plan = null where id = '0a000000-0000-0000-0000-000000000000';
+
+-- Accepting an invitation at the seat limit works (its pending seat becomes the member).
+update public.organizations set plan = 'starter' where id = '0b000000-0000-0000-0000-000000000000';
+insert into auth.users (id, email) values ('f0000000-0000-0000-0000-000000000000', 'frank@example.com');
+select pg_temp.login('b0000000-0000-0000-0000-000000000000', 'bob@example.com');
+set local role authenticated;
+create temp table invite_token as
+  select public.create_invitation('0b000000-0000-0000-0000-000000000000', 'frank@example.com') as token;
+reset role;
+select pg_temp.login('f0000000-0000-0000-0000-000000000000', 'frank@example.com');
+set local role authenticated;
+select lives_ok($$select public.accept_invitation((select token from invite_token))$$,
+                'an invitation can be accepted when it holds the last seat');
+reset role;
+select is((select count(*)::int from public.organization_members
+           where organization_id = '0b000000-0000-0000-0000-000000000000'), 2, 'the workspace now uses both seats');
 
 -- ---------------------------------------------------------------------------
 -- Phase 9: account deletion

@@ -49,8 +49,8 @@ reminders all land in Mailpit at http://127.0.0.1:54324.
 - **Guest reminders:** set `CRON_SECRET`, then call
   `curl -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/cron/reminders`
   (Vercel Cron does this daily in production).
-- **Billing:** set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
-  `STRIPE_PRICE_ID` (a $29/month recurring price). Without them there's no
-  paywall. Forward webhooks locally with
+- **Billing:** set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+  `STRIPE_PRICE_PRO` (Pro, $29/month) and optionally `STRIPE_PRICE_STARTER`
+  (Starter, $12/month). Without them there's no paywall and no plan limits. Forward webhooks locally with
   `stripe listen --forward-to localhost:3000/api/webhooks/stripe`, and enable
   the Customer Portal in the Stripe dashboard.

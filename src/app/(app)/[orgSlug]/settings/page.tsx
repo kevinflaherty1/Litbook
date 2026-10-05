@@ -14,6 +14,9 @@ import { GuestRemindersToggle } from "@/features/organizations/components/guest-
 import { RequestedAssetsForm } from "@/features/organizations/components/requested-assets-form";
 import { ReleaseFormEditor } from "@/features/organizations/components/release-form-editor";
 import { requireOrgMembership } from "@/features/organizations/queries";
+import { ProNotice } from "@/features/billing/components/pro-notice";
+import { planAllows } from "@/lib/plans";
+import { billingEnabled } from "@/lib/stripe";
 import { ProfileForm } from "@/features/team/components/profile-form";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,6 +30,11 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
     supabase.from("profiles").select("full_name").eq("id", user.id).single(),
     listCustomFields(org.id),
   ]);
+  const locked = {
+    branding: !planAllows(org.plan, "branding", billingEnabled),
+    questions: !planAllows(org.plan, "custom_questions", billingEnabled),
+    files: !planAllows(org.plan, "guest_files", billingEnabled),
+  };
 
   return (
     <>
@@ -48,8 +56,9 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
           <CardTitle>Guest page</CardTitle>
           <CardDescription>Make the onboarding page look like your show.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <BrandingForm org={org} disabled={!canManage} />
+        <CardContent className="grid gap-4">
+          {locked.branding && <ProNotice orgSlug={org.slug} />}
+          <BrandingForm org={org} disabled={!canManage || locked.branding} />
         </CardContent>
       </Card>
       <Card id="questions">
@@ -60,8 +69,14 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
             each guest&apos;s vault and in the episode export.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <CustomFieldsManager orgId={org.id} fields={customFields} disabled={!canManage} />
+        <CardContent className="grid gap-4">
+          {locked.questions && <ProNotice orgSlug={org.slug} />}
+          <CustomFieldsManager
+            orgId={org.id}
+            fields={customFields}
+            disabled={!canManage}
+            canAdd={!locked.questions}
+          />
         </CardContent>
       </Card>
       <Card id="files">
@@ -71,8 +86,14 @@ export default async function SettingsPage({ params }: PageProps<"/[orgSlug]/set
             Besides a headshot, ask guests for these files. They&apos;re always optional for the guest.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <RequestedAssetsForm orgId={org.id} requested={org.requested_assets} disabled={!canManage} />
+        <CardContent className="grid gap-4">
+          {locked.files && <ProNotice orgSlug={org.slug} />}
+          <RequestedAssetsForm
+            orgId={org.id}
+            requested={org.requested_assets}
+            disabled={!canManage}
+            onlyRemove={locked.files}
+          />
         </CardContent>
       </Card>
       <Card id="release-form">

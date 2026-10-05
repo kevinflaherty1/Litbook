@@ -47,7 +47,8 @@ Preview if you use a separate Supabase project for previews):
 | `RESEND_API_KEY`, `EMAIL_FROM`         | Invites and "guest submitted" emails           |
 | `STRIPE_SECRET_KEY`                    | `sk_live_…` (turns billing and the paywall on) |
 | `STRIPE_WEBHOOK_SECRET`                | `whsec_…` from the webhook endpoint below      |
-| `STRIPE_PRICE_ID`                      | The $29/month recurring price                  |
+| `STRIPE_PRICE_PRO`                     | Pro's recurring price ($29/month)              |
+| `STRIPE_PRICE_STARTER`                 | Optional: Starter's price ($12/month)          |
 | `STRIPE_TRIAL_DAYS`                    | Optional, default `14`                         |
 
 `vercel.json` schedules `/api/cron/reminders` daily at 15:00 UTC; Vercel
@@ -59,14 +60,19 @@ logged as one JSON object per line, with portal and invite tokens redacted.
 
 ## 3. Stripe
 
-1. Create a product, "Litbook Pro", with a $29/month recurring price. Use its
-   id as `STRIPE_PRICE_ID`.
+1. Create two products: "Litbook Pro" with a $29/month recurring price
+   (`STRIPE_PRICE_PRO`) and "Litbook Starter" with a $12/month price
+   (`STRIPE_PRICE_STARTER`; leave it unset to sell Pro only). The webhook
+   maps each subscription's price to its plan; limits live in
+   `public.plan_limits()` and `src/lib/plans.ts`. `STRIPE_PRICE_ID` from
+   before plan tiers still works as Pro.
 2. **Developers → Webhooks → Add endpoint**: `https://<your-domain>/api/webhooks/stripe`
    with these events:
    - `checkout.session.completed`
    - `customer.subscription.created`, `.updated`, `.deleted`, `.paused`, `.resumed`
-3. **Settings → Billing → Customer portal**: enable it, and allow cancelling
-   and updating payment methods.
+3. **Settings → Billing → Customer portal**: enable it, allow cancelling and
+   updating payment methods, and under "Subscriptions" allow switching
+   between the Starter and Pro prices (that's how customers change plan).
 4. Test end to end in test mode: start a trial from Settings → Billing,
    check the workspace shows "Free trial", then cancel in the portal and
    check it shows "Cancelled" once the period ends.

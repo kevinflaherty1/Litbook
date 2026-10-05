@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { fail, ok } from "@/lib/action-result";
 import { isPgError, PG } from "@/lib/errors";
 import { authedAction, orgAction } from "@/lib/safe-action";
+import { requireProFeature } from "@/features/billing/gate";
 import { BillingNotConfiguredError, destroyOrganization } from "@/features/organizations/destroy";
 import { updateRequestedAssetsSchema } from "@/schemas/assets";
 import { deleteOrganizationSchema } from "@/schemas/billing";
@@ -116,6 +117,8 @@ export const updateBranding = orgAction(
   updateBrandingSchema,
   { roles: ["owner", "admin"] },
   async (input, { supabase, org }) => {
+    const gate = await requireProFeature(supabase, org.id, "branding");
+    if (gate) return gate;
     const { data: current, error: readError } = await supabase
       .from("organizations")
       .select("logo_path")
@@ -159,6 +162,11 @@ export const updateRequestedAssets = orgAction(
   updateRequestedAssetsSchema,
   { roles: ["owner", "admin"] },
   async (input, { supabase, org }) => {
+    // Turning requests off is always allowed, so a downgraded workspace can tidy up.
+    if (input.kinds.length) {
+      const gate = await requireProFeature(supabase, org.id, "guest_files");
+      if (gate) return gate;
+    }
     const { error } = await supabase
       .from("organizations")
       .update({ requested_assets: [...new Set(input.kinds)] })

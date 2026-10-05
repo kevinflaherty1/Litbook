@@ -37,7 +37,7 @@ export const requireOrgMembership = cache(async (slug: string) => {
   const { data: org, error } = await supabase
     .from("organizations")
     .select(
-      "id, name, slug, logo_path, brand_color, portal_welcome, requested_assets, release_form_text, release_form_version, subscription_status, guest_reminders_enabled, organization_members!inner(role)",
+      "id, name, slug, logo_path, brand_color, portal_welcome, requested_assets, release_form_text, release_form_version, subscription_status, plan, guest_reminders_enabled, organization_members!inner(role)",
     )
     .eq("slug", slug)
     .eq("organization_members.user_id", user.id)

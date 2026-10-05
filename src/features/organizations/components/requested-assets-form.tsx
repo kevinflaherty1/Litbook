@@ -11,10 +11,13 @@ export function RequestedAssetsForm({
   orgId,
   requested,
   disabled,
+  onlyRemove = false,
 }: {
   orgId: string;
   requested: AssetKind[];
   disabled: boolean;
+  /** The plan doesn't include extra files: requests can be turned off, not on. */
+  onlyRemove?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [kinds, setKinds] = useOptimistic(requested);
@@ -28,6 +31,7 @@ export function RequestedAssetsForm({
             type="checkbox"
             className="mt-0.5 size-4 accent-primary"
             checked={kinds.includes(kind)}
+            disabled={onlyRemove && !kinds.includes(kind)}
             onChange={(e) => {
               const next = e.target.checked ? [...kinds, kind] : kinds.filter((k) => k !== kind);
               startTransition(async () => {

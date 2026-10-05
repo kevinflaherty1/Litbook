@@ -2,7 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 
-import { subscriptionFields } from "@/lib/stripe";
+import { planForPrice, subscriptionFields } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/types/database";
 
@@ -53,6 +53,7 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<Outcome> {
         p_current_period_end: null,
         p_cancel_at_period_end: null,
         p_event_at: eventAt,
+        p_plan: null,
       });
       log(event, orgId ? "applied" : "unknown-org", { orgId });
       return orgId ? "applied" : "unknown-org";
@@ -73,8 +74,12 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<Outcome> {
         p_current_period_end: f.currentPeriodEnd,
         p_cancel_at_period_end: f.cancelAtPeriodEnd,
         p_event_at: eventAt,
+        p_plan: planForPrice(f.price),
       });
-      log(event, orgId ? "applied" : "unknown-org", { orgId, status: f.status });
+      const plan = planForPrice(f.price);
+      if (f.price && !plan)
+        console.warn(`[stripe-webhook] price ${f.price} doesn't match a plan; plan left unchanged`);
+      log(event, orgId ? "applied" : "unknown-org", { orgId, status: f.status, plan });
       return orgId ? "applied" : "unknown-org";
     }
 

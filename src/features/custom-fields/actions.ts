@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 
+import { requireProFeature } from "@/features/billing/gate";
 import { fail, ok } from "@/lib/action-result";
 import { orgAction } from "@/lib/safe-action";
 import {
@@ -18,6 +19,8 @@ export const createCustomField = orgAction(
   createCustomFieldSchema,
   ADMINS,
   async (input, { supabase, org }) => {
+    const gate = await requireProFeature(supabase, org.id, "custom_questions");
+    if (gate) return gate;
     const { data: existing, error: countError } = await supabase
       .from("custom_fields")
       .select("position, archived_at")
