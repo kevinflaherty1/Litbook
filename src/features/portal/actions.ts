@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
@@ -10,7 +11,9 @@ import { isPgError, PG } from "@/lib/errors";
 import { getRequestMeta, rateLimit } from "@/lib/rate-limit";
 import { publicAction } from "@/lib/safe-action";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyHostOfSubmission } from "@/features/portal/notify";
+import { notifyHostOfSubmission, notifySchedule } from "@/features/portal/notify";
+import { buildIcs, recordingEvent } from "@/lib/calendar";
+import { pickSlotSchema, releaseSlotSchema } from "@/schemas/scheduling";
 import { getOnboardingContext } from "@/features/portal/queries";
 import { fieldErrorsOf } from "@/lib/safe-action";
 import { ASSET_SPECS, assetUploadSchema } from "@/schemas/assets";
@@ -153,4 +156,55 @@ export const submitOnboarding = publicAction(onboardingSubmissionSchema, async (
   });
 
   redirect(`/submit/${input.token}/done`);
+});
+
+/** The guest takes one of the offered recording times (replacing any earlier pick). */
+export const pickRecordingSlot = publicAction(pickSlotSchema, async (input) => {
+  if (!(await withinLimits(input.token, "submit"))) return fail(SLOW_DOWN);
+  const ctx = await getOnboardingContext(input.token);
+  if (!ctx) return fail(LINK_INVALID);
+  if (ctx.slots.find((s) => s.mine)?.id === input.slotId) return ok(undefined);
+
+  const { data, error } = await createAdminClient().rpc("pick_recording_slot", {
+    p_token: input.token,
+    p_slot_id: input.slotId,
+  });
+  if (isPgError(error, PG.uniqueViolation)) return fail("Someone just took that time. Please pick another.");
+  if (isPgError(error, PG.noDataFound)) return fail("That time is no longer available. Please pick another.");
+  if (error) throw error;
+
+  const slot = data as { starts_at: string; duration_minutes: number };
+  after(() =>
+    notifySchedule(ctx, {
+      startsAt: slot.starts_at,
+      durationMinutes: slot.duration_minutes,
+      ics: buildIcs([
+        recordingEvent({
+          bookingId: ctx.episode_guest_id,
+          start: slot.starts_at,
+          durationMinutes: slot.duration_minutes,
+          organizationName: ctx.organization.name,
+          episodeTitle: ctx.episode.title,
+          meetingUrl: ctx.episode.meeting_url,
+        }),
+      ]),
+    }),
+  );
+  refresh();
+  return ok(undefined);
+});
+
+/** The guest gives up their recording time (e.g. to tell the host none work). */
+export const releaseRecordingSlot = publicAction(releaseSlotSchema, async (input) => {
+  if (!(await withinLimits(input.token, "submit"))) return fail(SLOW_DOWN);
+  const ctx = await getOnboardingContext(input.token);
+  if (!ctx) return fail(LINK_INVALID);
+  if (!ctx.slots.some((s) => s.mine)) return ok(undefined);
+
+  const { error } = await createAdminClient().rpc("release_recording_slot", { p_token: input.token });
+  if (isPgError(error, PG.noDataFound)) return fail(LINK_INVALID);
+  if (error) throw error;
+  after(() => notifySchedule(ctx, { released: true }));
+  refresh();
+  return ok(undefined);
 });

@@ -13,6 +13,7 @@ const episode = {
   status: "draft",
   recordingAt: "",
   publishAt: "",
+  meetingUrl: "",
 } as const;
 
 describe("createEpisodeSchema", () => {
@@ -23,7 +24,17 @@ describe("createEpisodeSchema", () => {
       episodeNumber: null,
       recordingAt: null,
       publishAt: null,
+      meetingUrl: null,
     });
+  });
+
+  it("normalises the recording link and rejects junk", () => {
+    expect(createEpisodeSchema.parse({ ...episode, meetingUrl: "zoom.us/j/123" }).meetingUrl).toBe(
+      "https://zoom.us/j/123",
+    );
+    expect(createEpisodeSchema.safeParse({ ...episode, meetingUrl: "javascript:alert(1)" }).success).toBe(
+      false,
+    );
   });
 
   it("parses episode numbers and timestamps", () => {

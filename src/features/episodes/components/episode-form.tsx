@@ -29,6 +29,7 @@ type Episode = {
   status: CreateEpisodeInput["status"];
   recording_at: string | null;
   publish_at: string | null;
+  meeting_url: string | null;
 };
 
 /** Create (no `episode`) or edit an episode. */
@@ -45,6 +46,7 @@ export function EpisodeForm({ orgId, episode }: { orgId: string; episode?: Episo
       status: episode?.status ?? "draft",
       recordingAt: episode?.recording_at ?? "",
       publishAt: episode?.publish_at ?? "",
+      meetingUrl: episode?.meeting_url ?? "",
     },
   });
   const { errors, isDirty } = form.formState;
@@ -134,6 +136,19 @@ export function EpisodeForm({ orgId, episode }: { orgId: string; episode?: Episo
             )}
           </Field>
         </div>
+        <Field
+          id="episode-meeting-url"
+          label="Recording link"
+          description="Zoom, Riverside, Google Meet… Guests see it once they pick a time, and it goes in their calendar invite."
+          error={errors.meetingUrl?.message}
+        >
+          <Input
+            inputMode="url"
+            autoCapitalize="none"
+            placeholder="riverside.fm/studio/your-show"
+            {...form.register("meetingUrl")}
+          />
+        </Field>
         <Field id="episode-description" label="Notes" error={errors.description?.message}>
           <Textarea rows={4} placeholder="Topics, prep notes, links…" {...form.register("description")} />
         </Field>

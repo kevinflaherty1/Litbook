@@ -13,7 +13,7 @@ type Org = { id: string; name: string; slug: string };
 
 // Explicit column lists: token hashes and other secrets never leave the database.
 const EPISODE_COLUMNS =
-  "id, title, description, episode_number, status, recording_at, publish_at, created_by, created_at, updated_at";
+  "id, title, description, episode_number, status, recording_at, publish_at, meeting_url, created_by, created_at, updated_at";
 const GUEST_COLUMNS = "id, full_name, email, internal_notes, created_by, created_at, updated_at";
 const BOOKING_COLUMNS = `id, episode_id, guest_id, status, token_expires_at, token_last_used_at, submitted_at,
   ready_at, link_emailed_at, last_reminder_at, reminder_count, created_by, created_at, updated_at`;
@@ -47,7 +47,7 @@ async function addFiles(add: AddToZip, bucket: Bucket, prefix: string, into = `f
  */
 export async function buildWorkspaceExport(supabase: ServerClient, org: Org, add: AddToZip) {
   const orgId = org.id;
-  const [organization, members, invitations, episodes, guests, bookings, submissions, customFields] =
+  const [organization, members, invitations, episodes, guests, bookings, submissions, customFields, slots] =
     await Promise.all([
       supabase
         .from("organizations")
@@ -110,6 +110,16 @@ export async function buildWorkspaceExport(supabase: ServerClient, org: Org, add
           .range(from, to),
       ),
       listCustomFields(orgId),
+      fetchAll((from, to) =>
+        supabase
+          .from("recording_slots")
+          .select(
+            "id, episode_id, starts_at, duration_minutes, episode_guest_id, booked_at, created_by, created_at",
+          )
+          .eq("organization_id", orgId)
+          .order("starts_at")
+          .range(from, to),
+      ),
     ]);
 
   add("README.txt", README(`workspace "${org.name}" (${org.slug})`));
@@ -126,6 +136,7 @@ export async function buildWorkspaceExport(supabase: ServerClient, org: Org, add
   add("bookings.json", json(bookings));
   add("submissions.json", json(submissions));
   add("custom_fields.json", json(customFields));
+  add("recording_slots.json", json(slots));
   await addFiles(add, "guest-assets", `${orgId}/`);
   await addFiles(add, "org-branding", `${orgId}/`);
 }

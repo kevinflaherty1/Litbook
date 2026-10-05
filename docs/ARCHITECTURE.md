@@ -22,16 +22,23 @@ auth.users 1─1 profiles ─┐
                          │ N
 organizations 1─N organization_members N─1 profiles
       │       1─N organization_invitations
-      │       1─N episodes ──┐
+      │       1─N custom_fields          (guest questions; archived, never deleted)
+      │       1─N episodes ──┬──1─N recording_slots (offered times; ≤1 guest each)
       │       1─N guests ────┤
       │                      ▼
       └──────1─N episode_guests  (a booking: guest X on episode Y)
                      │  token_hash, status, expiry
+                     ├──1─N submission_assets (logo, intro audio, media kit)
                      1
                      │
                      1
-                 submissions     (bio, socials, headshot_path, signed release)
+                 submissions     (bio, socials, headshot_path, custom_answers,
+                                  signed release)
 ```
+
+`organizations` also holds branding (`logo_path`, `brand_color`,
+`portal_welcome`), the files it requests (`requested_assets`) and its plan
+(`plan`, set by the Stripe webhook; limits in `public.plan_limits()`).
 
 - **`guests` is an org-level directory**, so one person can appear on many
   episodes. The **booking** (`episode_guests`) owns the onboarding link and its
@@ -43,7 +50,9 @@ organizations 1─N organization_members N─1 profiles
   version, and a snapshot of the exact text) is stored on the submission and
   can't be changed by any authenticated user.
 
-Migration: [`supabase/migrations/20261004000000_initial_schema.sql`](../supabase/migrations/20261004000000_initial_schema.sql)
+Migrations: [`supabase/migrations/`](../supabase/migrations/), starting with
+[`20261004000000_initial_schema.sql`](../supabase/migrations/20261004000000_initial_schema.sql).
+Each later phase adds one migration.
 
 ## Security model
 

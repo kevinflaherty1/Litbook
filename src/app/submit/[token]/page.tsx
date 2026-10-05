@@ -3,7 +3,9 @@ import { after } from "next/server";
 import { CalendarClock, Lock } from "lucide-react";
 
 import { LocalDateTime } from "@/components/shared/local-date-time";
+import { SchedulePicker } from "@/features/portal/components/schedule-picker";
 import { logoPublicUrl } from "@/lib/branding";
+import { googleCalendarUrl, recordingEvent } from "@/lib/calendar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { OnboardingForm } from "@/features/portal/components/onboarding-form";
 import {
@@ -21,6 +23,19 @@ export default async function GuestPortalPage({ params }: PageProps<"/submit/[to
   const headshotPreviewUrl = await getHeadshotPreviewUrl(ctx.submission?.headshot_path);
   const firstName = ctx.guest.full_name.split(" ")[0];
   const logoUrl = logoPublicUrl(ctx.organization.logo_path);
+  const mySlot = ctx.slots.find((s) => s.mine);
+  const calendarUrl = mySlot
+    ? googleCalendarUrl(
+        recordingEvent({
+          bookingId: ctx.episode_guest_id,
+          start: mySlot.starts_at,
+          durationMinutes: mySlot.duration_minutes,
+          organizationName: ctx.organization.name,
+          episodeTitle: ctx.episode.title,
+          meetingUrl: ctx.episode.meeting_url,
+        }),
+      )
+    : null;
 
   return (
     <>
@@ -42,7 +57,7 @@ export default async function GuestPortalPage({ params }: PageProps<"/submit/[to
           {!ctx.is_locked &&
             " Share a few details so we can introduce you properly. It takes about five minutes."}
         </p>
-        {ctx.episode.recording_at && (
+        {ctx.episode.recording_at && !ctx.slots.length && (
           <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <CalendarClock className="size-4" /> Recording <LocalDateTime value={ctx.episode.recording_at} />
           </p>
@@ -53,6 +68,15 @@ export default async function GuestPortalPage({ params }: PageProps<"/submit/[to
           </p>
         )}
       </header>
+
+      {ctx.slots.length > 0 && (
+        <SchedulePicker
+          token={token}
+          slots={ctx.slots}
+          meetingUrl={ctx.episode.meeting_url}
+          googleCalendarUrl={calendarUrl}
+        />
+      )}
 
       {ctx.is_locked ? (
         <Alert>

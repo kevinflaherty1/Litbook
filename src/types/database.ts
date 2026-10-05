@@ -176,6 +176,7 @@ export type Database = {
           description: string | null;
           episode_number: number | null;
           id: string;
+          meeting_url: string | null;
           organization_id: string;
           publish_at: string | null;
           recording_at: string | null;
@@ -189,6 +190,7 @@ export type Database = {
           description?: string | null;
           episode_number?: number | null;
           id?: string;
+          meeting_url?: string | null;
           organization_id: string;
           publish_at?: string | null;
           recording_at?: string | null;
@@ -202,6 +204,7 @@ export type Database = {
           description?: string | null;
           episode_number?: number | null;
           id?: string;
+          meeting_url?: string | null;
           organization_id?: string;
           publish_at?: string | null;
           recording_at?: string | null;
@@ -486,6 +489,67 @@ export type Database = {
         };
         Relationships: [];
       };
+      recording_slots: {
+        Row: {
+          booked_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          duration_minutes: number;
+          episode_guest_id: string | null;
+          episode_id: string;
+          id: string;
+          organization_id: string;
+          starts_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          booked_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          duration_minutes?: number;
+          episode_guest_id?: string | null;
+          episode_id: string;
+          id?: string;
+          organization_id: string;
+          starts_at: string;
+          updated_at?: string;
+        };
+        Update: {
+          booked_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          duration_minutes?: number;
+          episode_guest_id?: string | null;
+          episode_id?: string;
+          id?: string;
+          organization_id?: string;
+          starts_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "recording_slots_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "recording_slots_organization_id_episode_guest_id_fkey";
+            columns: ["organization_id", "episode_guest_id"];
+            isOneToOne: false;
+            referencedRelation: "episode_guests";
+            referencedColumns: ["organization_id", "id"];
+          },
+          {
+            foreignKeyName: "recording_slots_organization_id_episode_id_fkey";
+            columns: ["organization_id", "episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["organization_id", "id"];
+          },
+        ];
+      };
       stripe_events: {
         Row: {
           id: string;
@@ -651,6 +715,33 @@ export type Database = {
         };
         Returns: string;
       };
+      booking_for_token: {
+        Args: { p_token: string };
+        Returns: {
+          created_at: string;
+          created_by: string | null;
+          episode_id: string;
+          guest_id: string;
+          id: string;
+          last_reminder_at: string | null;
+          link_emailed_at: string | null;
+          organization_id: string;
+          ready_at: string | null;
+          reminder_count: number;
+          status: Database["public"]["Enums"]["onboarding_status"];
+          submitted_at: string | null;
+          token_expires_at: string | null;
+          token_hash: string | null;
+          token_last_used_at: string | null;
+          updated_at: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "episode_guests";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       check_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number };
         Returns: boolean;
@@ -719,8 +810,10 @@ export type Database = {
       };
       org_has_active_subscription: { Args: { p_org: string }; Returns: boolean };
       org_plan_usage: { Args: { p_org: string }; Returns: Json };
+      pick_recording_slot: { Args: { p_slot_id: string; p_token: string }; Returns: Json };
       plan_limits: { Args: { p_plan: string }; Returns: Record<string, unknown> };
       record_onboarding_visit: { Args: { p_token: string }; Returns: undefined };
+      release_recording_slot: { Args: { p_token: string }; Returns: undefined };
       set_onboarding_token: {
         Args: { p_episode_guest_id: string; p_token: string; p_ttl?: string };
         Returns: boolean;

@@ -38,8 +38,8 @@ export const getEpisode = cache(async (orgId: string, episodeId: string) => {
   const { data, error } = await supabase
     .from("episodes")
     .select(
-      `id, title, description, episode_number, status, recording_at, publish_at, created_at,
-       episode_guests(${BOOKING_COLUMNS}, guests!inner(id, full_name, email))`,
+      `id, title, description, episode_number, status, recording_at, publish_at, meeting_url, created_at,
+       episode_guests(${BOOKING_COLUMNS}, guests!inner(id, full_name, email), recording_slots(starts_at, duration_minutes))`,
     )
     .eq("organization_id", orgId)
     .eq("id", episodeId)

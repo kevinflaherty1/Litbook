@@ -207,8 +207,26 @@ invited teammate can.
   both plans; switching plans goes through the Stripe Customer Portal.
 - With billing off (no Stripe keys) there are no limits.
 
+## Phase 12: Recording scheduling ✅
+
+- Episodes have a recording link (Zoom, Riverside, Google Meet…).
+- Hosts offer recording times on the episode page (several at once, with a
+  length). Each time holds one guest; hosts see who picked what, can free
+  or remove a time, and download the booked recordings as an `.ics` file.
+- Guests pick a time on their onboarding page (shown in their own time
+  zone), change it, or give it up. `pick_recording_slot()` locks the slot so
+  two guests can't take the same time, and only the portal can assign one
+  (a trigger stops hosts assigning guests directly).
+- After a pick, the host gets an email, and the guest gets a confirmation
+  with a calendar invite attached. The portal also offers the invite as an
+  `.ics` download and a Google Calendar link.
+- Not done: syncing with the host's Google Calendar (free/busy, creating
+  events) or creating Zoom/Riverside meetings through their APIs. Both need
+  OAuth apps registered with those providers; the meeting link is pasted
+  by the host instead.
+
 ## Post-MVP backlog
 
-- Calendar booking (guest picks a recording slot), plus Google Calendar and
-  Zoom or Riverside links.
+- Google Calendar sync and Zoom/Riverside meeting creation (OAuth apps).
 - Custom domain for the guest portal.
+- Reminder emails before a scheduled recording.

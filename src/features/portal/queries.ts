@@ -25,10 +25,18 @@ const contextSchema = z.object({
     portal_welcome: z.string().nullable(),
     requested_assets: z.array(z.enum(ASSET_KINDS)),
   }),
-  episode: z.object({ id: z.uuid(), title: z.string(), recording_at: z.string().nullable() }),
+  episode: z.object({
+    id: z.uuid(),
+    title: z.string(),
+    recording_at: z.string().nullable(),
+    meeting_url: z.string().nullable(),
+  }),
   guest: z.object({ full_name: z.string(), email: z.string().nullable() }),
   release: z.object({ text: z.string(), version: z.number() }),
   custom_fields: z.array(customFieldSchema),
+  slots: z.array(
+    z.object({ id: z.uuid(), starts_at: z.string(), duration_minutes: z.number(), mine: z.boolean() }),
+  ),
   assets: z.array(
     z.object({ kind: z.enum(ASSET_KINDS), path: z.string(), file_name: z.string(), size_bytes: z.number() }),
   ),

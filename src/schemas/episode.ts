@@ -16,6 +16,23 @@ const optionalTimestamp = z
   .union([z.literal(""), z.iso.datetime({ offset: true, message: "Enter a valid date and time." })])
   .transform((v) => v || null);
 
+/** Where the recording happens: a Zoom, Riverside, Google Meet… link. "" for none. */
+export const meetingUrlSchema = z
+  .string()
+  .trim()
+  .max(500, "That link is too long.")
+  .transform((v) => (v && !/^https?:\/\//i.test(v) ? `https://${v}` : v))
+  .refine((v) => {
+    if (!v) return true;
+    try {
+      const url = new URL(v);
+      return (url.protocol === "https:" || url.protocol === "http:") && url.hostname.includes(".");
+    } catch {
+      return false;
+    }
+  }, "Enter a valid link, like zoom.us/j/123.")
+  .transform((v) => v || null);
+
 const episodeFields = {
   title: z.string().trim().min(1, "Give the episode a title.").max(200, "Keep it under 200 characters."),
   description: z
@@ -32,6 +49,7 @@ const episodeFields = {
   status: z.enum(EPISODE_STATUSES),
   recordingAt: optionalTimestamp,
   publishAt: optionalTimestamp,
+  meetingUrl: meetingUrlSchema,
 };
 
 export const createEpisodeSchema = z.object({ orgId: z.uuid(), ...episodeFields });

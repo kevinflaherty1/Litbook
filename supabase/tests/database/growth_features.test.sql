@@ -2,7 +2,7 @@
 -- Run with: pnpm db:test  (supabase test db)
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(45);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as postgres, bypassing RLS)
@@ -204,6 +204,76 @@ select lives_ok($$select public.accept_invitation((select token from invite_toke
 reset role;
 select is((select count(*)::int from public.organization_members
            where organization_id = '0b000000-0000-0000-0000-000000000000'), 2, 'the workspace now uses both seats');
+
+-- ---------------------------------------------------------------------------
+-- Phase 12: recording scheduling
+-- ---------------------------------------------------------------------------
+insert into public.guests (id, organization_id, full_name) values
+  ('90a20000-0000-0000-0000-000000000000', '0a000000-0000-0000-0000-000000000000', 'Guest A2');
+insert into public.episode_guests (id, organization_id, episode_id, guest_id, token_hash, token_expires_at) values
+  ('ea200000-0000-0000-0000-000000000000', '0a000000-0000-0000-0000-000000000000',
+   'e0a00000-0000-0000-0000-000000000000', '90a20000-0000-0000-0000-000000000000',
+   public.hash_token('guest-token-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), now() + interval '1 day');
+insert into public.episodes (id, organization_id, title) values
+  ('e0a20000-0000-0000-0000-000000000000', '0a000000-0000-0000-0000-000000000000', 'Other episode');
+
+select pg_temp.login('c0000000-0000-0000-0000-000000000000', 'carol@example.com');
+set local role authenticated;
+select lives_ok($$insert into public.recording_slots (organization_id, episode_id, starts_at, duration_minutes) values
+                  ('0a000000-0000-0000-0000-000000000000', 'e0a00000-0000-0000-0000-000000000000', now() + interval '2 days', 45),
+                  ('0a000000-0000-0000-0000-000000000000', 'e0a00000-0000-0000-0000-000000000000', now() + interval '3 days', 45),
+                  ('0a000000-0000-0000-0000-000000000000', 'e0a00000-0000-0000-0000-000000000000', now() - interval '1 day', 45),
+                  ('0a000000-0000-0000-0000-000000000000', 'e0a20000-0000-0000-0000-000000000000', now() + interval '2 days', 45)$$,
+                'members can offer recording times');
+select throws_ok($$update public.recording_slots set episode_guest_id = 'ea000000-0000-0000-0000-000000000000'
+                   where episode_id = 'e0a00000-0000-0000-0000-000000000000'$$,
+                 '42501', null, 'hosts cannot assign a time to a guest');
+reset role;
+
+select pg_temp.login('b0000000-0000-0000-0000-000000000000', 'bob@example.com');
+set local role authenticated;
+select is((select count(*)::int from public.recording_slots), 0, 'other workspaces cannot see recording times');
+reset role;
+
+create temp table slot_ids as
+  select (select id from public.recording_slots where episode_id = 'e0a00000-0000-0000-0000-000000000000'
+          and starts_at > now() order by starts_at limit 1) as first_slot,
+         (select id from public.recording_slots where episode_id = 'e0a00000-0000-0000-0000-000000000000'
+          and starts_at > now() order by starts_at desc limit 1) as second_slot,
+         (select id from public.recording_slots where starts_at < now()) as past_slot,
+         (select id from public.recording_slots where episode_id = 'e0a20000-0000-0000-0000-000000000000') as other_slot;
+grant select on slot_ids to service_role;
+
+set local role service_role;
+select is(jsonb_array_length(public.get_onboarding_context('guest-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') -> 'slots'),
+          2, 'the portal lists the episode''s open future times only');
+select lives_ok($$select public.pick_recording_slot('guest-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', (select first_slot from slot_ids))$$,
+                'a guest can pick an open time');
+select throws_ok($$select public.pick_recording_slot('guest-token-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', (select first_slot from slot_ids))$$,
+                 '23505', null, 'a taken time cannot be picked by another guest');
+select throws_ok($$select public.pick_recording_slot('guest-token-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', (select past_slot from slot_ids))$$,
+                 'P0002', null, 'a past time cannot be picked');
+select throws_ok($$select public.pick_recording_slot('guest-token-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', (select other_slot from slot_ids))$$,
+                 'P0002', null, 'a time on another episode cannot be picked');
+select is(jsonb_array_length(public.get_onboarding_context('guest-token-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb') -> 'slots'),
+          1, 'other guests no longer see a taken time');
+select public.pick_recording_slot('guest-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', (select second_slot from slot_ids));
+reset role;
+select results_eq($$select episode_guest_id from public.recording_slots where id = (select first_slot from slot_ids)
+                    union all
+                    select episode_guest_id from public.recording_slots where id = (select second_slot from slot_ids)$$,
+                  $$values (null::uuid), ('ea000000-0000-0000-0000-000000000000'::uuid)$$,
+                  'picking another time frees the first');
+
+delete from public.episode_guests where id = 'ea000000-0000-0000-0000-000000000000';
+select results_eq($$select episode_guest_id, booked_at from public.recording_slots where id = (select second_slot from slot_ids)$$,
+                  $$values (null::uuid, null::timestamptz)$$, 'removing a booking frees its time');
+
+select pg_temp.login('c0000000-0000-0000-0000-000000000000', 'carol@example.com');
+set local role authenticated;
+select throws_ok($$select public.pick_recording_slot('guest-token-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', (select second_slot from slot_ids))$$,
+                 '42501', null, 'signed-in users cannot call the portal scheduling functions');
+reset role;
 
 -- ---------------------------------------------------------------------------
 -- Phase 9: account deletion

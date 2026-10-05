@@ -45,6 +45,8 @@ export type BookingRow = {
   link_emailed_at: string | null;
   reminder_count: number;
   guests: { id: string; full_name: string; email: string | null };
+  /** The recording time the guest picked, if any (at most one). */
+  recording_slots?: { starts_at: string }[];
 };
 
 const DATE_ONLY: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
@@ -162,6 +164,11 @@ export function BookingsTable({
                 <span className="text-xs text-muted-foreground">
                   <LinkState booking={b} />
                 </span>
+                {b.recording_slots?.[0] && b.status !== "cancelled" && (
+                  <span className="text-xs text-muted-foreground">
+                    Recording <LocalDateTime value={b.recording_slots[0].starts_at} />
+                  </span>
+                )}
               </div>
               <BookingStatusBadge status={b.status} />
               <div className="flex items-center gap-1">

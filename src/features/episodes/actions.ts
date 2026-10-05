@@ -25,6 +25,7 @@ export const createEpisode = orgAction(createEpisodeSchema, {}, async (input, { 
       status: input.status,
       recording_at: input.recordingAt,
       publish_at: input.publishAt,
+      meeting_url: input.meetingUrl,
     })
     .select("id")
     .single();
@@ -45,6 +46,7 @@ export const updateEpisode = orgAction(updateEpisodeSchema, {}, async (input, { 
       status: input.status,
       recording_at: input.recordingAt,
       publish_at: input.publishAt,
+      meeting_url: input.meetingUrl,
     })
     .eq("organization_id", org.id)
     .eq("id", input.episodeId)

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, CalendarDays, Download } from "lucide-react";
 
 import { CopyButton } from "@/components/shared/copy-button";
 
@@ -15,6 +15,8 @@ import { EpisodeStatusBadge } from "@/features/episodes/components/episode-statu
 import { getEpisode } from "@/features/episodes/queries";
 import { getEpisodeSubmissions } from "@/features/bookings/queries";
 import { getGuestOptions } from "@/features/guests/queries";
+import { RecordingSlots } from "@/features/scheduling/components/recording-slots";
+import { listEpisodeSlots } from "@/features/scheduling/queries";
 import { requireOrgMembership } from "@/features/organizations/queries";
 import { uuidParamOr404 } from "@/lib/params";
 import { episodeShowNotes } from "@/lib/show-notes";
@@ -33,10 +35,11 @@ export default async function EpisodePage({ params }: PageProps<"/[orgSlug]/epis
   const { orgSlug, episodeId } = await params;
   const { org, canManage } = await requireOrgMembership(orgSlug);
   const id = uuidParamOr404(episodeId);
-  const [episode, guestOptions, submissions] = await Promise.all([
+  const [episode, guestOptions, submissions, slots] = await Promise.all([
     getEpisode(org.id, id),
     getGuestOptions(org.id),
     getEpisodeSubmissions(org.id, id),
+    listEpisodeSlots(org.id, id),
   ]);
   if (!episode) notFound();
   const showNotes = episodeShowNotes(
@@ -80,6 +83,26 @@ export default async function EpisodePage({ params }: PageProps<"/[orgSlug]/epis
           <div className="border-t pt-6">
             <BookGuestForm orgId={org.id} episodeId={episode.id} guests={available} />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card id="schedule">
+        <CardHeader>
+          <CardTitle>Recording times</CardTitle>
+          <CardDescription>
+            Offer times and let each guest pick one on their onboarding page. Each time holds one guest.
+            {!episode.meeting_url && " Add a recording link in Details so guests get it in their invite."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <RecordingSlots orgId={org.id} episodeId={episode.id} slots={slots} />
+          {(slots.some((s) => s.bookingId) || episode.recording_at) && (
+            <Button asChild variant="outline" size="sm" className="w-fit">
+              <a href={`/${org.slug}/episodes/${episode.id}/calendar.ics`}>
+                <CalendarDays /> Add to my calendar (.ics)
+              </a>
+            </Button>
+          )}
         </CardContent>
       </Card>
 

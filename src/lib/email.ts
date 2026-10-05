@@ -2,7 +2,18 @@ import "server-only";
 
 import { serverEnv } from "@/lib/env.server";
 
-type Email = { to: string; subject: string; html: string; text: string; replyTo?: string };
+type Attachment = { filename: string; content: string; contentType: string };
+type Email = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+  /** Small text attachments, e.g. a calendar invite. */
+  attachments?: Attachment[];
+};
+
+const base64 = (value: string) => Buffer.from(value, "utf8").toString("base64");
 
 /** Whether emails actually go anywhere (Resend, or Mailpit in development). */
 export const emailConfigured = !!(serverEnv.RESEND_API_KEY || serverEnv.MAILPIT_URL);
@@ -35,6 +46,15 @@ export async function sendEmail(email: Email): Promise<{ sent: boolean }> {
       html: email.html,
       text: email.text,
       ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+      ...(email.attachments?.length
+        ? {
+            attachments: email.attachments.map((a) => ({
+              filename: a.filename,
+              content: base64(a.content),
+              content_type: a.contentType,
+            })),
+          }
+        : {}),
     }),
   });
 
@@ -58,6 +78,15 @@ async function sendToMailpit(email: Email): Promise<{ sent: boolean }> {
         Text: email.text,
         HTML: email.html,
         ...(email.replyTo ? { ReplyTo: [{ Email: email.replyTo }] } : {}),
+        ...(email.attachments?.length
+          ? {
+              Attachments: email.attachments.map((a) => ({
+                Filename: a.filename,
+                Content: base64(a.content),
+                ContentType: a.contentType,
+              })),
+            }
+          : {}),
       }),
     });
     if (!res.ok) console.error("[email] Mailpit error", res.status, await res.text());
