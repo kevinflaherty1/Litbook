@@ -41,6 +41,24 @@ npm test            # 69 tests, node:test
 npm run typecheck   # needs `npm install` for typescript and @types/node
 ```
 
+## Testing
+
+```sh
+npm test                                   # automated suite (node:test), no install needed
+npm run sample:risky -- /tmp/risky-export  # generate an export containing risky data
+
+V="--vault /tmp/pdm-demo"                  # keep demo data out of your real vault
+./bin/pdm.js import test/fixtures/instagram $V      # clean sample: "nothing sensitive found"
+./bin/pdm.js transform latest --to twitter $V       # drafts + warnings
+./bin/pdm.js import /tmp/risky-export $V            # "⚠ Risk scan: 5 high, 3 medium"
+./bin/pdm.js scan latest $V                         # masked, highlighted findings
+./bin/pdm.js transform latest --to reddit --subreddit test $V   # risky posts: blocked
+./bin/pdm.js scan latest --ack <finding-id> $V      # unblock one reviewed finding
+rm -rf /tmp/pdm-demo /tmp/risky-export
+```
+
+With your own data, request your archive from the platform, unzip it, and run `import` on the folder.
+
 ## Common data model
 
 Defined in [`src/model/types.ts`](src/model/types.ts) and versioned with `SCHEMA_VERSION`.
