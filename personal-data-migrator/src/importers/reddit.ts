@@ -5,6 +5,7 @@ import { extractEntities, toIso } from "../model/text.ts";
 import type { Comment, ImportedBundle, Post, Profile } from "../model/types.ts";
 import { parseCsv } from "../util/csv.ts";
 import { findFiles, guessMedia, listFiles } from "../util/fs.ts";
+import { readRedditSaved } from "./saved.ts";
 import { MediaCollector, type Importer, type ImportOptions } from "./types.ts";
 
 /*
@@ -108,6 +109,7 @@ export const redditImporter: Importer = {
 
     posts.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     comments.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const { saved, collections } = await readRedditSaved(exportDir, files);
     return {
       schemaVersion: 1,
       source: "reddit",
@@ -116,6 +118,8 @@ export const redditImporter: Importer = {
       comments,
       connections: [],
       media: media.media,
+      saved,
+      collections,
       importWarnings: warnings,
     };
   },

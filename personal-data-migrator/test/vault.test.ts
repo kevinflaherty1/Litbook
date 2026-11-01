@@ -39,7 +39,7 @@ describe("vault", async () => {
   it("round-trips through disk and the index", async () => {
     assert.deepEqual(await vault.load(bundle.id), bundle);
     const [summary] = await vault.list();
-    assert.deepEqual(summary!.counts, { posts: 3, comments: 1, connections: 2, media: 5 });
+    assert.deepEqual(summary!.counts, { posts: 3, comments: 1, connections: 2, media: 5, saved: 6 });
     assert.equal((await vault.latest("instagram"))!.id, bundle.id);
   });
 

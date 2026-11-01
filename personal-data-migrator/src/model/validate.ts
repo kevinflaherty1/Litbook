@@ -19,6 +19,9 @@ export function validateBundle(value: unknown): string[] {
   if (!Array.isArray(b.comments)) errors.push("comments is not an array");
   if (!Array.isArray(b.connections)) errors.push("connections is not an array");
   if (typeof b.media !== "object" || b.media === null) errors.push("media is not an object");
+  if (b.saved !== undefined && !Array.isArray(b.saved)) errors.push("saved is not an array");
+  if (b.collections !== undefined && !Array.isArray(b.collections))
+    errors.push("collections is not an array");
   if (errors.length) return errors;
 
   const ids = new Set<string>();
@@ -31,6 +34,12 @@ export function validateBundle(value: unknown): string[] {
     if (Number.isNaN(Date.parse(post.createdAt))) errors.push(`${where}.createdAt is not a date`);
     for (const mediaId of post.mediaIds ?? []) {
       if (!b.media![mediaId]) errors.push(`${where} references unknown media ${mediaId}`);
+    }
+  }
+  const savedIds = new Set((b.saved ?? []).map((item) => item.id));
+  for (const c of b.collections ?? []) {
+    for (const id of c.itemIds) {
+      if (!savedIds.has(id)) errors.push(`collection "${c.name}" references unknown saved item ${id}`);
     }
   }
   return errors;

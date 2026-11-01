@@ -4,7 +4,11 @@ import { localId } from "../model/ids.ts";
 import { decodeHtmlEntities, extractEntities, toIso } from "../model/text.ts";
 import type { Comment, Connection, ImportedBundle, MediaKind, Post, Profile } from "../model/types.ts";
 import { findFiles, guessMedia, listFiles } from "../util/fs.ts";
+import { parseYtd } from "../util/ytd.ts";
+import { readTwitterSaved } from "./saved.ts";
 import { MediaCollector, type Importer, type ImportOptions } from "./types.ts";
+
+export { parseYtd };
 
 /*
  * X/Twitter archive ("Download an archive of your data"), unzipped. Data files
@@ -45,18 +49,6 @@ interface Tweet {
   in_reply_to_screen_name?: string;
   entities?: { urls?: TwUrl[]; media?: TwMedia[] };
   extended_entities?: { media?: TwMedia[] };
-}
-
-/** Parse a `window.YTD.<name>.partN = [...]` file. */
-export function parseYtd<T>(source: string): T[] {
-  const start = source.indexOf("=");
-  if (start === -1) throw new Error("Not a Twitter archive data file");
-  return JSON.parse(
-    source
-      .slice(start + 1)
-      .trim()
-      .replace(/;$/, ""),
-  ) as T[];
 }
 
 async function readYtd<T>(exportDir: string, files: string[], pattern: RegExp): Promise<T[]> {
@@ -221,6 +213,7 @@ export const twitterImporter: Importer = {
 
     posts.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     comments.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const { saved, collections } = await readTwitterSaved(exportDir, files);
     return {
       schemaVersion: 1,
       source: "twitter",
@@ -229,6 +222,8 @@ export const twitterImporter: Importer = {
       comments,
       connections,
       media: media.media,
+      saved,
+      collections,
       importWarnings: warnings,
     };
   },

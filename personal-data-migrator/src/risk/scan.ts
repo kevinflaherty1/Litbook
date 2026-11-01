@@ -153,6 +153,10 @@ export async function scanBundle(bundle: Bundle, opts: ScanOptions): Promise<Ris
   for (const c of bundle.comments) {
     scanText(c.text, { record: "comment", recordId: c.id, field: "text", createdAt: c.createdAt });
   }
+  // Saved/liked links can carry tokens (e.g. a bookmarked password-reset link).
+  for (const item of bundle.saved ?? []) {
+    scanText(item.source.url, { record: "saved", recordId: item.id, field: "url", createdAt: item.savedAt });
+  }
 
   for (const asset of Object.values(bundle.media)) {
     const file = opts.mediaFile(asset);

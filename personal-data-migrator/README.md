@@ -37,7 +37,7 @@ To try it without real data, point `import` at `test/fixtures/instagram`, `test/
 `test/fixtures/reddit`, and pass `--vault /tmp/pdm-demo` to keep the demo out of your real vault.
 
 ```sh
-npm test            # 69 tests, node:test
+npm test            # 80 tests, node:test
 npm run typecheck   # needs `npm install` for typescript and @types/node
 ```
 
@@ -50,6 +50,7 @@ npm run sample:risky -- /tmp/risky-export  # generate an export containing risky
 V="--vault /tmp/pdm-demo"                  # keep demo data out of your real vault
 ./bin/pdm.js import test/fixtures/instagram $V      # clean sample: "nothing sensitive found"
 ./bin/pdm.js transform latest --to twitter $V       # drafts + warnings
+./bin/pdm.js export-saved latest $V                 # likes/saves/collections → bookmarks.html
 ./bin/pdm.js import /tmp/risky-export $V            # "⚠ Risk scan: 5 high, 3 medium"
 ./bin/pdm.js scan latest $V                         # masked, highlighted findings
 ./bin/pdm.js transform latest --to reddit --subreddit test $V   # risky posts: blocked
@@ -63,14 +64,16 @@ With your own data, request your archive from the platform, unzip it, and run `i
 
 Defined in [`src/model/types.ts`](src/model/types.ts) and versioned with `SCHEMA_VERSION`.
 
-| Entity       | What it is                                  | Notes                                                                    |
-| ------------ | ------------------------------------------- | ------------------------------------------------------------------------ |
-| `Bundle`     | Everything from one export of one account   | Unit of storage. Has `importWarnings` for anything the importer skipped. |
-| `Profile`    | Handle, display name, bio, website          |                                                                          |
-| `Post`       | Something you published at the top level    | Tweet, Instagram post or reel, Reddit submission                         |
-| `Comment`    | A reply you wrote on someone else's content | Replies to other people on X land here, not in `posts`                   |
-| `Connection` | A follower or account you follow            | X archives give numeric ids only (`handle: "id:123"`)                    |
-| `MediaAsset` | A photo, video, GIF or audio file           | Stored once per unique file (keyed by `sha256`); posts point to it by id |
+| Entity       | What it is                                                  | Notes                                                                                              |
+| ------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `Bundle`     | Everything from one export of one account                   | Unit of storage. Has `importWarnings` for anything the importer skipped.                           |
+| `Profile`    | Handle, display name, bio, website                          |                                                                                                    |
+| `Post`       | Something you published at the top level                    | Tweet, Instagram post or reel, Reddit submission                                                   |
+| `Comment`    | A reply you wrote on someone else's content                 | Replies to other people on X land here, not in `posts`                                             |
+| `Connection` | A follower or account you follow                            | X archives give numeric ids only (`handle: "id:123"`)                                              |
+| `MediaAsset` | A photo, video, GIF or audio file                           | Stored once per unique file (keyed by `sha256`); posts point to it by id                           |
+| `SavedItem`  | Someone else's post or comment you liked, saved or voted on | Kept as a link (plus text, author and date when the export has them). Filed under collection names |
+| `Collection` | A named folder of saved items (Instagram collections)       | Lists its items in the platform's order                                                            |
 
 Rules the model follows:
 
@@ -97,6 +100,29 @@ fixed path, because platforms move them between export versions.
 | Instagram | `personal_information.json`, `posts_N.json`, `reels.json`, `post_comments_N.json`, `followers_N.json`, `following.json` | Fixes Meta's double-encoded UTF-8 ("Ã©" → "é"). Single-photo posts keep their caption on the media item.                                      |
 | X/Twitter | `account.js`, `profile.js`, `tweets.js` / `tweet.js` (+ `-partN`), `tweets_media/`, `follower.js`, `following.js`       | Reads the `window.YTD… =` wrapper, swaps `t.co` links for the real URLs, removes media links, decodes HTML entities, marks `RT @` as reposts. |
 | Reddit    | `posts.csv`, `comments.csv`, `statistics.csv`                                                                           | Has a CSV parser that handles quoted fields with line breaks. The export has no media files, so image posts link to the remote image.         |
+
+### Likes, saves and collections
+
+| Platform  | Files read                                                                              | Notes                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Instagram | `liked_posts.json`, `liked_comments.json`, `saved_posts.json`, `saved_collections.json` | A saved post that's also in collections is stored once, tagged with each collection name |
+| X/Twitter | `like.js`                                                                               | Includes the liked tweet's text. X archives don't include bookmarks                      |
+| Reddit    | `saved_posts.csv`, `saved_comments.csv`, `post_votes.csv`, `comment_votes.csv`          | Votes you later removed (`none`) are skipped                                             |
+
+You can't re-post someone else's content, so these migrate as **bookmarks** rather than drafts:
+
+```sh
+./bin/pdm.js export-saved latest                     # bookmarks.html: import into any browser, Raindrop, Pocket…
+./bin/pdm.js export-saved latest --format csv        # spreadsheet
+./bin/pdm.js export-saved latest --format json
+./bin/pdm.js export-saved latest --include-downvotes # downvotes are left out by default
+```
+
+In the HTML file, likes, saves and upvotes each get a folder, and every collection becomes a subfolder of Saved.
+Saved items are other people's content, so the export treats every field as untrusted: text is HTML-escaped, only
+`http(s)` links are written (no `javascript:` or `data:` URLs), and CSV cells that a spreadsheet would run as a formula
+(`=`, `+`, `-`, `@`) get a leading `'`. Saved links are also risk-scanned, because a bookmarked link can carry a login
+or reset token.
 
 ## Local vault
 

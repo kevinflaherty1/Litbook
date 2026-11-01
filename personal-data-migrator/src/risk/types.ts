@@ -28,7 +28,7 @@ export type RiskCategory =
   | "private_messages";
 
 export interface RiskLocation {
-  record: "post" | "comment" | "profile" | "media" | "export_file";
+  record: "post" | "comment" | "profile" | "media" | "saved" | "export_file";
   /** Local record id, media id, or export-relative file path. */
   recordId: string;
   field: string;

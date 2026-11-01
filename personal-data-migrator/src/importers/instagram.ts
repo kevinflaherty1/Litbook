@@ -3,6 +3,7 @@ import { localId } from "../model/ids.ts";
 import { extractEntities, fixMetaMojibake, toIso } from "../model/text.ts";
 import type { Comment, Connection, ImportedBundle, Post, Profile } from "../model/types.ts";
 import { findFiles, guessMedia, listFiles, readJson } from "../util/fs.ts";
+import { readInstagramSaved } from "./saved.ts";
 import { MediaCollector, type Importer, type ImportOptions } from "./types.ts";
 
 /*
@@ -155,6 +156,7 @@ export const instagramImporter: Importer = {
     await readConnections(/^following\.json$/, "following");
 
     posts.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const { saved, collections } = await readInstagramSaved(exportDir, files);
     return {
       schemaVersion: 1,
       source: "instagram",
@@ -163,6 +165,8 @@ export const instagramImporter: Importer = {
       comments,
       connections,
       media: media.media,
+      saved,
+      collections,
       importWarnings: warnings,
     };
   },

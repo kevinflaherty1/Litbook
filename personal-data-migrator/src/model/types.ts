@@ -139,6 +139,38 @@ export interface Profile {
   createdAt?: string;
 }
 
+/**
+ * Someone else's content you engaged with: a like, a save/bookmark, or a vote.
+ * These aren't re-posted anywhere; they migrate as bookmarks (see exporters).
+ */
+export interface SavedItem {
+  id: string;
+  kind: "like" | "save" | "vote";
+  /** The liked/saved thing on its platform (its id and URL, when known). */
+  source: SourceRef;
+  targetType: "post" | "comment" | "unknown";
+  /** Handle of whoever posted it, when the export says. */
+  author?: string;
+  /** Text of the item, when the export includes it (X likes do). */
+  textPreview?: string;
+  community?: string;
+  /** Only for kind "vote". */
+  direction?: "up" | "down";
+  savedAt?: string;
+  /** Names of the collections this item is filed under. */
+  collections: string[];
+}
+
+/** A named folder of saved items (Instagram collections). */
+export interface Collection {
+  id: string;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+  /** SavedItem ids, in the platform's order. */
+  itemIds: string[];
+}
+
 /** A sensitive file present in the export that was intentionally not imported. */
 export interface SensitiveExportFile {
   /** Export-relative path (the first one, when several files share a kind). */
@@ -160,6 +192,9 @@ export interface Bundle {
   comments: Comment[];
   connections: Connection[];
   media: Record<string, MediaAsset>;
+  /** Likes, saves and votes. Optional so bundles stored before this field existed still load. */
+  saved?: SavedItem[];
+  collections?: Collection[];
   /** Things the importer saw but could not map, so the user knows. */
   importWarnings: string[];
   /** Sensitive files left behind in the raw export (DMs, contacts, IP logs). */

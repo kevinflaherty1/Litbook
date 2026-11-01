@@ -9,7 +9,7 @@ import type { Platform } from "./types.ts";
  */
 export function localId(
   platform: Platform,
-  kind: "post" | "comment",
+  kind: "post" | "comment" | "saved" | "collection",
   ...parts: (string | number | undefined)[]
 ): string {
   const key = parts.filter((p) => p !== undefined && p !== "").join("|");

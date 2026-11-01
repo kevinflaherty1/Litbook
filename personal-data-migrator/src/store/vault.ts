@@ -28,7 +28,7 @@ export interface BundleSummary {
   source: Bundle["source"];
   handle: string;
   importedAt: string;
-  counts: { posts: number; comments: number; connections: number; media: number };
+  counts: { posts: number; comments: number; connections: number; media: number; saved?: number };
 }
 
 export function defaultVaultRoot(): string {
@@ -168,6 +168,7 @@ export class Vault {
         comments: bundle.comments.length,
         connections: bundle.connections.length,
         media: Object.keys(media).length,
+        saved: bundle.saved?.length ?? 0,
       },
     });
     await writeFileAtomic(path.join(this.root, "index.json"), JSON.stringify(index, null, 2));

@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { detectPlatform } from "./importers/index.ts";
 import { PLATFORMS, isPlatform, type Platform } from "./model/types.ts";
+import { exportBookmarks, type BookmarkFormat } from "./exporters/bookmarks.ts";
 import { importExport, scanAndSave } from "./pipeline.ts";
 import { renderReport, safeTerminal, useColor } from "./risk/render.ts";
 import type { RiskReport, Severity } from "./risk/types.ts";
@@ -23,6 +24,10 @@ Usage:
       Show sensitive data found in a bundle, masked and highlighted.
   pdm scan <bundle-id|latest> --ack <finding-id>[,<finding-id>...]
       Mark findings as reviewed so they stop blocking transforms.
+  pdm export-saved <bundle-id|latest> [--format html|csv|json] [--out <file>]
+      Export likes, saves, upvotes and collections as bookmarks.
+      html (default) imports into any browser; collections become folders.
+        --include-downvotes   also export downvoted items
   pdm transform <bundle-id|latest> --to <platform> [options]
       Convert a bundle's posts into drafts for another platform.
         --subreddit <name>    target subreddit for --to reddit
@@ -106,6 +111,8 @@ async function main(argv: string[]): Promise<void> {
       "allow-risky": { type: "boolean" },
       "min-severity": { type: "string" },
       json: { type: "boolean" },
+      format: { type: "string" },
+      "include-downvotes": { type: "boolean" },
       ack: { type: "string" },
       out: { type: "string" },
       help: { type: "boolean", short: "h" },
@@ -180,6 +187,12 @@ async function main(argv: string[]): Promise<void> {
       console.log(`  comments: ${bundle.comments.length}`);
       console.log(`  connections: ${bundle.connections.length}`);
       console.log(`  media: ${Object.keys(bundle.media).length}`);
+      const saved = bundle.saved ?? [];
+      const count = (pred: (k: (typeof saved)[number]) => boolean) => saved.filter(pred).length;
+      console.log(
+        `  saved: ${count((s) => s.kind === "like")} likes, ${count((s) => s.kind === "save")} saves, ` +
+          `${count((s) => s.kind === "vote")} votes, ${bundle.collections?.length ?? 0} collections`,
+      );
       for (const w of bundle.importWarnings) console.log(`  ! ${safeTerminal(w)}`);
       const report = await vault.loadRiskReport(bundle.id);
       if (report) console.log(riskSummaryLine(report));
@@ -226,6 +239,23 @@ async function main(argv: string[]): Promise<void> {
         );
       }
       console.log(`\nPlan written to ${out}`);
+      return;
+    }
+    case "export-saved": {
+      const bundle = await vault.load(await resolveBundleId(vault, arg));
+      const format = (values.format ?? "html") as BookmarkFormat;
+      if (!["html", "csv", "json"].includes(format)) fail("--format must be html, csv or json");
+      const result = exportBookmarks(bundle, format, { includeDownvotes: values["include-downvotes"] });
+      const out = values.out
+        ? path.resolve(values.out)
+        : path.join(vault.root, "exports", `${bundle.id}-saved.${format}`);
+      await mkdir(path.dirname(out), { recursive: true, mode: 0o700 });
+      await writeFile(out, result.content, { mode: 0o600 });
+      console.log(`Exported ${result.exported} saved items to ${out}`);
+      if (result.droppedUnsafe)
+        console.log(`  ! ${result.droppedUnsafe} skipped: missing or non-http(s) link`);
+      if (!bundle.saved)
+        console.log("  (bundle was imported before likes/saves were supported; re-import it)");
       return;
     }
     case "remove": {
