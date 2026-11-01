@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone side project with its own tsconfig and tests.
+    "personal-data-migrator/**",
   ]),
 ]);
 

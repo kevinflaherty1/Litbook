@@ -1,0 +1,22 @@
+{
+  "name": "personal-data-migrator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pull your data out of a social platform, keep it on your device, and reshape it for another platform.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "bin": {
+    "pdm": "./bin/pdm.js"
+  },
+  "scripts": {
+    "pdm": "node --experimental-strip-types --no-warnings=ExperimentalWarning src/cli.ts",
+    "test": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.9.0"
+  }
+}

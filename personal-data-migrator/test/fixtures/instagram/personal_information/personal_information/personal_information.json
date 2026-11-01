@@ -1,0 +1,20 @@
+{
+  "profile_user": [
+    {
+      "string_map_data": {
+        "Username": {
+          "value": "sam.outdoors"
+        },
+        "Name": {
+          "value": "Sam Rivera \u00e2\u009b\u00b0\u00ef\u00b8\u008f"
+        },
+        "Bio": {
+          "value": "Chasing ridgelines. Caf\u00c3\u00a9 enthusiast."
+        },
+        "Website": {
+          "value": "https://samrivera.example"
+        }
+      }
+    }
+  ]
+}

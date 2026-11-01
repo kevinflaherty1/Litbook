@@ -1,0 +1,9 @@
+id,permalink,date,ip,subreddit,gildings,title,url,body
+abc1,https://www.reddit.com/r/CampingandHiking/comments/abc1/first_solo_overnight/,2024-03-10 14:22:01 UTC,10.0.0.1,CampingandHiking,0,First solo overnight — lessons learned,https://www.reddit.com/r/CampingandHiking/comments/abc1/first_solo_overnight/,"Some things I learned:
+
+* **Bring more water** than you think
+* A [good headlamp](https://example.com/lamp) matters
+
+Would do it again."
+abc2,https://www.reddit.com/r/EarthPorn/comments/abc2/ridge/,2024-04-01 08:00:00 UTC,10.0.0.1,EarthPorn,1,"Sunrise over the ridge, Colorado [4032x3024]",https://i.redd.it/ridge123.jpg,
+abc3,https://www.reddit.com/r/Ultralight/comments/abc3/pack/,2024-04-15 08:00:00 UTC,10.0.0.1,Ultralight,0,My lighterpack for the PCT,https://lighterpack.com/r/xyz,
