@@ -211,6 +211,6 @@ describe("→ instagram", () => {
 describe("plan summary", () => {
   it("counts statuses", async () => {
     const plan = transformBundle(await load("twitter"), "instagram");
-    assert.deepEqual(plan.summary, { ready: 1, needs_review: 0, skipped: 2 });
+    assert.deepEqual(plan.summary, { ready: 1, needs_review: 0, skipped: 2, blocked: 0 });
   });
 });

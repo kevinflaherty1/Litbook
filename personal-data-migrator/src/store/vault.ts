@@ -1,10 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { Bundle, ImportedBundle, MediaAsset } from "../model/types.ts";
+import type { RiskReport } from "../risk/types.ts";
 import { validateBundle } from "../model/validate.ts";
 import { exists, extensionFor } from "../util/fs.ts";
 
@@ -14,6 +15,9 @@ import { exists, extensionFor } from "../util/fs.ts";
  *   <root>/index.json                 summary of every imported bundle
  *   <root>/bundles/<bundleId>.json    one Bundle (common model) per import
  *   <root>/media/ab/<sha256>.<ext>    media, deduped by content hash
+ *   <root>/risk/<bundleId>.json       risk scan report (masked values only)
+ *   <root>/risk/acknowledged.json     finding ids the user reviewed and accepted
+ *   <root>/.secret-key                random key for risk fingerprints; never leaves the vault
  *
  * Plain JSON on purpose: the user's data should stay readable without this
  * tool. Directories are created 0700 and files 0600 since this is personal data.
@@ -171,9 +175,61 @@ export class Vault {
     return JSON.parse(serialized) as Bundle;
   }
 
+  /**
+   * Per-vault random key used to fingerprint sensitive values (HMAC). Created
+   * on first use with O_EXCL so two processes can't race to different keys.
+   */
+  async secretKey(): Promise<Buffer> {
+    const file = path.join(this.root, ".secret-key");
+    await mkdir(this.root, { recursive: true, mode: 0o700 });
+    try {
+      await writeFile(file, randomBytes(32).toString("hex"), { mode: 0o600, flag: "wx" });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+    }
+    const key = Buffer.from((await readFile(file, "utf8")).trim(), "hex");
+    if (key.length !== 32)
+      throw new Error(`${file} is corrupt; delete it to regenerate (fingerprints will change)`);
+    return key;
+  }
+
+  async saveRiskReport(report: RiskReport): Promise<void> {
+    await mkdir(path.join(this.root, "risk"), { recursive: true, mode: 0o700 });
+    this.#bundlePath(report.bundleId); // validates the id
+    await writeFileAtomic(
+      path.join(this.root, "risk", `${report.bundleId}.json`),
+      JSON.stringify(report, null, 2),
+    );
+  }
+
+  async loadRiskReport(bundleId: string): Promise<RiskReport | undefined> {
+    this.#bundlePath(bundleId);
+    const file = path.join(this.root, "risk", `${bundleId}.json`);
+    return (await exists(file)) ? (JSON.parse(await readFile(file, "utf8")) as RiskReport) : undefined;
+  }
+
+  async acknowledged(): Promise<Set<string>> {
+    const file = path.join(this.root, "risk", "acknowledged.json");
+    return new Set((await exists(file)) ? (JSON.parse(await readFile(file, "utf8")) as string[]) : []);
+  }
+
+  async acknowledge(ids: string[]): Promise<void> {
+    const all = await this.acknowledged();
+    for (const id of ids) {
+      if (!/^[0-9a-f]{12}$/.test(id)) throw new Error(`Not a finding id: ${id}`);
+      all.add(id);
+    }
+    await mkdir(path.join(this.root, "risk"), { recursive: true, mode: 0o700 });
+    await writeFileAtomic(
+      path.join(this.root, "risk", "acknowledged.json"),
+      JSON.stringify([...all].sort(), null, 2),
+    );
+  }
+
   /** Remove a bundle. Media is left in place since other bundles may share it. */
   async remove(id: string): Promise<void> {
     await rm(this.#bundlePath(id), { force: true });
+    await rm(path.join(this.root, "risk", `${id}.json`), { force: true });
     const index = (await this.list()).filter((b) => b.id !== id);
     await writeFileAtomic(path.join(this.root, "index.json"), JSON.stringify(index, null, 2));
   }

@@ -37,7 +37,7 @@ To try it without real data, point `import` at `test/fixtures/instagram`, `test/
 `test/fixtures/reddit`, and pass `--vault /tmp/pdm-demo` to keep the demo out of your real vault.
 
 ```sh
-npm test            # 52 tests, node:test
+npm test            # 69 tests, node:test
 npm run typecheck   # needs `npm install` for typescript and @types/node
 ```
 
@@ -117,6 +117,57 @@ For every target:
 - `--attribution` adds an "Originally posted on X · date" line.
 - **@mentions are flagged, never rewritten.** `@alice` on Instagram may not be `@alice` on X.
 
+## Risk scanning
+
+Every import is scanned for data that's dangerous to have public or to re-post. `pdm scan` shows the results:
+
+```sh
+./bin/pdm.js scan latest                      # all findings, highlighted in context
+./bin/pdm.js scan latest --min-severity high
+./bin/pdm.js scan latest --json               # machine-readable, still masked
+./bin/pdm.js scan latest --ack 3f83f9707d19   # reviewed it, it's fine: stop blocking
+```
+
+```
+▲ HIGH  payment card number
+    post twitter:post:2001 · text · 2024-03-08
+    lol my new card came »card ending 1111« dont steal it
+    → Call the card issuer and ask for a replacement card.
+    id d16552756d33
+```
+
+| Severity | What's detected                                                                                                                                                                                                                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| High     | Payment card numbers (Luhn-checked), IBANs (mod-97-checked), US SSNs, private keys, AWS/GitHub/Slack/Stripe/Google keys, "password is …", tokens in URLs, **GPS coordinates inside photo/video metadata**, followers-only or private posts (re-posting makes them public), DMs/contacts/device tokens left in the raw export |
+| Medium   | Phone numbers, email addresses, street addresses, GPS coordinates in text, dates of birth, session tokens (JWTs), login-IP and account files in the raw export                                                                                                                                                               |
+
+**How it affects transforms:** a post with an unacknowledged high-risk finding is `blocked`. Its draft text is left out
+of the plan file entirely, so it can't be copy-pasted and published by accident. Acknowledge the specific finding with
+`--ack`, or pass `--allow-risky` to `transform`. Medium findings don't block, but they force `needs_review` and show up
+as warnings.
+
+### How the scanner protects the data it finds
+
+- **Raw values are never stored or printed.** A finding holds a masked rendering ("card ending 1111", "AKIA••••
+  (20 chars)"), a redacted excerpt, and a fingerprint. Every sensitive value in an excerpt is masked, not just the
+  one the finding is about. If the excerpt's edge would cut through a value, the excerpt is widened so the whole
+  value gets masked. Tests check that no raw value appears in the report file, the terminal output or the plan.
+- **Fingerprints use a secret key.** A plain hash of a phone number or SSN can be reversed by trying every possible
+  number. Fingerprints are instead keyed with a random 32-byte secret stored at `<vault>/.secret-key` (0600, created
+  so two processes can't each make a different one). They group repeats ("same value appears 2×") but are useless
+  outside your vault.
+- **Text from the export can't control your terminal.** Before anything is printed, escape sequences, control
+  characters and bidi overrides (characters that can make text display in a different order) are removed. A crafted
+  post can't rewrite the screen or hide a line.
+- **File parsing is defensive.** The EXIF/MP4 parsers read only the start (and, for video, the end) of each file and
+  check every offset. The tests feed them truncated and random data. Coordinates are detected but never extracted.
+  The detector patterns avoid catastrophic backtracking.
+- **Everything stays local.** Reports and acknowledgements live in `<vault>/risk/` with 0600 permissions. No network
+  access.
+
+Add a detector by adding one entry to `TEXT_DETECTORS` in [`src/risk/detectors.ts`](src/risk/detectors.ts): a pattern,
+an optional validator, a mask function and advice text.
+
 ## Not built yet (prototype scope)
 
 - Publishing through each platform's API. Drafts are the hand-off point.
@@ -124,3 +175,4 @@ For every target:
 - Bluesky, Mastodon, Threads, TikTok. Each one needs one importer and/or one transformer.
 - Reading `.zip` files directly (unzip the export first for now).
 - Encrypting the vault at rest.
+- Removing EXIF/GPS metadata from flagged media automatically (right now it's only flagged).

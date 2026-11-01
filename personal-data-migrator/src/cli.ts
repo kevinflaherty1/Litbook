@@ -1,8 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { detectPlatform, importers } from "./importers/index.ts";
+import { detectPlatform } from "./importers/index.ts";
 import { PLATFORMS, isPlatform, type Platform } from "./model/types.ts";
+import { importExport, scanAndSave } from "./pipeline.ts";
+import { renderReport, safeTerminal, useColor } from "./risk/render.ts";
+import type { RiskReport, Severity } from "./risk/types.ts";
 import { Vault } from "./store/vault.ts";
 import { transformBundle, type Draft } from "./transformers/index.ts";
 
@@ -10,17 +13,24 @@ const HELP = `pdm — personal data migrator
 
 Usage:
   pdm import <export-dir> [--from <platform>] [--handle <name>]
-      Read an unzipped "download your data" export into the local vault.
+      Read an unzipped "download your data" export into the local vault,
+      then scan it for high-risk data.
   pdm list
       Show imported bundles.
   pdm show <bundle-id|latest>
       Summarize a bundle.
+  pdm scan <bundle-id|latest> [--min-severity high|medium|low] [--json]
+      Show sensitive data found in a bundle, masked and highlighted.
+  pdm scan <bundle-id|latest> --ack <finding-id>[,<finding-id>...]
+      Mark findings as reviewed so they stop blocking transforms.
   pdm transform <bundle-id|latest> --to <platform> [options]
       Convert a bundle's posts into drafts for another platform.
         --subreddit <name>    target subreddit for --to reddit
         --attribution         add an "Originally posted on ..." line
         --no-number           don't add 1/N counters to tweet threads
         --include-reposts     also convert reposts of other people's posts
+        --allow-risky         produce drafts for posts with high-risk findings
+                              (default: blocked, draft text withheld)
         --out <file>          where to write the plan (default: <vault>/plans/)
   pdm remove <bundle-id>
 
@@ -31,7 +41,7 @@ Platforms: ${PLATFORMS.join(", ")}
 `;
 
 function fail(message: string): never {
-  console.error(`error: ${message}`);
+  console.error(`error: ${safeTerminal(message)}`);
   process.exit(1);
 }
 
@@ -49,8 +59,21 @@ async function resolveBundleId(vault: Vault, ref: string | undefined): Promise<s
   return latest.id;
 }
 
+function riskSummaryLine(report: RiskReport): string {
+  const { high, medium, low } = report.summary;
+  if (!high && !medium && !low) return "  Risk scan: nothing sensitive found.";
+  return `  ⚠ Risk scan: ${high} high, ${medium} medium, ${low} low → run \`pdm scan ${report.bundleId}\``;
+}
+
+function severityArg(value: string | undefined): Severity {
+  if (value === undefined) return "low";
+  if (value !== "high" && value !== "medium" && value !== "low")
+    fail("--min-severity must be high, medium or low");
+  return value;
+}
+
 function previewDraft(draft: Draft): string {
-  const indent = (s: string) => s.replace(/^/gm, "    ");
+  const indent = (s: string) => safeTerminal(s).replace(/^/gm, "    ");
   switch (draft.platform) {
     case "twitter":
       return draft.tweets
@@ -80,6 +103,10 @@ async function main(argv: string[]): Promise<void> {
       attribution: { type: "boolean" },
       "no-number": { type: "boolean" },
       "include-reposts": { type: "boolean" },
+      "allow-risky": { type: "boolean" },
+      "min-severity": { type: "string" },
+      json: { type: "boolean" },
+      ack: { type: "string" },
       out: { type: "string" },
       help: { type: "boolean", short: "h" },
     },
@@ -97,15 +124,34 @@ async function main(argv: string[]): Promise<void> {
       const dir = path.resolve(arg);
       const platform = platformArg(values.from, "--from") ?? (await detectPlatform(dir));
       if (!platform) fail("couldn't tell which platform this export is from; pass --from");
-      const imported = await importers[platform].import(dir, { handle: values.handle });
-      const bundle = await vault.save(imported, dir);
-      console.log(`Imported ${platform} export for @${bundle.profile.handle} → ${bundle.id}`);
+      const { bundle, report } = await importExport(vault, platform, dir, { handle: values.handle });
+      console.log(`Imported ${platform} export for @${safeTerminal(bundle.profile.handle)} → ${bundle.id}`);
       console.log(
         `  ${bundle.posts.length} posts, ${bundle.comments.length} comments, ` +
           `${bundle.connections.length} connections, ${Object.keys(bundle.media).length} media`,
       );
-      for (const w of bundle.importWarnings) console.log(`  ! ${w}`);
+      for (const w of bundle.importWarnings) console.log(`  ! ${safeTerminal(w)}`);
       console.log(`  stored in ${vault.root}`);
+      console.log(riskSummaryLine(report));
+      return;
+    }
+    case "scan": {
+      const bundle = await vault.load(await resolveBundleId(vault, arg));
+      if (values.ack) {
+        const ids = values.ack
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const known = new Set(((await vault.loadRiskReport(bundle.id))?.findings ?? []).map((f) => f.id));
+        const unknown = ids.filter((id) => !known.has(id));
+        if (unknown.length) fail(`no such finding in ${bundle.id}: ${unknown.join(", ")}`);
+        await vault.acknowledge(ids);
+        console.log(`Acknowledged ${ids.length} finding(s); they no longer block transforms.`);
+      }
+      // Always re-scan so detector updates and acknowledgements are reflected.
+      const report = await scanAndSave(vault, bundle);
+      if (values.json) console.log(JSON.stringify(report, null, 2));
+      else console.log(renderReport(report, { color: useColor() }, severityArg(values["min-severity"])));
       return;
     }
     case "list": {
@@ -122,9 +168,11 @@ async function main(argv: string[]): Promise<void> {
       const bundle = await vault.load(await resolveBundleId(vault, arg));
       const { profile } = bundle;
       console.log(
-        `${bundle.id}\n  ${profile.platform} @${profile.handle}${profile.displayName ? ` (${profile.displayName})` : ""}`,
+        safeTerminal(
+          `${bundle.id}\n  ${profile.platform} @${profile.handle}${profile.displayName ? ` (${profile.displayName})` : ""}`,
+        ),
       );
-      if (profile.bio) console.log(`  bio: ${profile.bio}`);
+      if (profile.bio) console.log(`  bio: ${safeTerminal(profile.bio)}`);
       const dates = bundle.posts.map((p) => p.createdAt).sort();
       console.log(
         `  posts: ${bundle.posts.length}${dates.length ? ` (${dates[0]!.slice(0, 10)} → ${dates.at(-1)!.slice(0, 10)})` : ""}`,
@@ -132,18 +180,28 @@ async function main(argv: string[]): Promise<void> {
       console.log(`  comments: ${bundle.comments.length}`);
       console.log(`  connections: ${bundle.connections.length}`);
       console.log(`  media: ${Object.keys(bundle.media).length}`);
-      for (const w of bundle.importWarnings) console.log(`  ! ${w}`);
+      for (const w of bundle.importWarnings) console.log(`  ! ${safeTerminal(w)}`);
+      const report = await vault.loadRiskReport(bundle.id);
+      if (report) console.log(riskSummaryLine(report));
       return;
     }
     case "transform": {
       const target = platformArg(values.to, "--to") ?? fail("--to is required");
       const bundle = await vault.load(await resolveBundleId(vault, arg));
-      const plan = transformBundle(bundle, target, {
-        subreddit: values.subreddit,
-        attribution: values.attribution,
-        numberThreads: !values["no-number"],
-        includeReposts: values["include-reposts"],
-      });
+      const report = await scanAndSave(vault, bundle);
+      const plan = transformBundle(
+        bundle,
+        target,
+        {
+          subreddit: values.subreddit,
+          attribution: values.attribution,
+          numberThreads: !values["no-number"],
+          includeReposts: values["include-reposts"],
+          allowRisky: values["allow-risky"],
+        },
+        new Date(),
+        report,
+      );
       const out = values.out
         ? path.resolve(values.out)
         : path.join(vault.root, "plans", `${bundle.id}-to-${target}.json`);
@@ -152,15 +210,21 @@ async function main(argv: string[]): Promise<void> {
 
       console.log(`${plan.from} → ${plan.to}: ${plan.results.length} items`);
       console.log(
-        `  ready ${plan.summary.ready} · needs review ${plan.summary.needs_review} · skipped ${plan.summary.skipped}`,
+        `  ready ${plan.summary.ready} · needs review ${plan.summary.needs_review} · ` +
+          `skipped ${plan.summary.skipped} · blocked ${plan.summary.blocked}`,
       );
       for (const r of plan.results.slice(0, 5)) {
         console.log(`\n  ${r.status.toUpperCase()}  ${r.postIds.join(", ")}`);
         if (r.draft) console.log(previewDraft(r.draft));
-        if (r.reason) console.log(`    skipped: ${r.reason}`);
-        for (const w of r.warnings) console.log(`    ! ${w}`);
+        if (r.reason) console.log(`    ${r.status}: ${safeTerminal(r.reason)}`);
+        for (const w of r.warnings) console.log(`    ! ${safeTerminal(w)}`);
       }
       if (plan.results.length > 5) console.log(`\n  … ${plan.results.length - 5} more`);
+      if (plan.summary.blocked && !values["allow-risky"]) {
+        console.log(
+          `\n${plan.summary.blocked} post(s) blocked for high-risk data; their text is not in the plan.`,
+        );
+      }
       console.log(`\nPlan written to ${out}`);
       return;
     }

@@ -139,6 +139,15 @@ export interface Profile {
   createdAt?: string;
 }
 
+/** A sensitive file present in the export that was intentionally not imported. */
+export interface SensitiveExportFile {
+  /** Export-relative path (the first one, when several files share a kind). */
+  path: string;
+  kind: string;
+  severity: "high" | "medium" | "low";
+  fileCount: number;
+}
+
 /** Everything taken from one export of one account. */
 export interface Bundle {
   schemaVersion: typeof SCHEMA_VERSION;
@@ -153,6 +162,8 @@ export interface Bundle {
   media: Record<string, MediaAsset>;
   /** Things the importer saw but could not map, so the user knows. */
   importWarnings: string[];
+  /** Sensitive files left behind in the raw export (DMs, contacts, IP logs). */
+  sensitiveExportFiles?: SensitiveExportFile[];
 }
 
 /** What an importer returns before the vault assigns ids and copies media. */

@@ -42,7 +42,9 @@ export type TransformStatus =
   /** Valid, but a person should look (synthesized title, dropped tags, ...). */
   | "needs_review"
   /** Can't be expressed on the target (e.g. a text-only post on Instagram). */
-  | "skipped";
+  | "skipped"
+  /** Contains high-risk data; the draft is withheld until reviewed. */
+  | "blocked";
 
 export interface TransformResult<D extends Draft = Draft> {
   /** Ids of the common-model posts this draft came from (several for a merged thread). */
@@ -65,6 +67,11 @@ export interface TransformOptions {
   attribution?: boolean;
   /** Include reposts of other people's content. Default false. */
   includeReposts?: boolean;
+  /**
+   * Produce drafts even for posts with unacknowledged high-risk findings
+   * (they're still marked needs_review). Default false: such posts are blocked.
+   */
+  allowRisky?: boolean;
 }
 
 export interface TransformContext {
