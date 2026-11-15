@@ -18,13 +18,24 @@ affiliates. AI drafts the articles under a pen name. Research:
 
 ## Name shortlist
 Brandable, covers both trades, room to add lawn care/cleaning later:
-- WashRouteHQ.com
-- SoapAndSqueegee.com
-- TheWashBiz.com
-- CurbsideWashPro.com
-- SqueegeeStartup.com
-- ExteriorCleanHQ.com
-- RinseAndRoute.com
+1. SoapAndSqueegee.com (top pick)
+2. SqueegeeStartup.com
+3. TheWashBiz.com
+4. ExteriorCleanHQ.com
+5. CurbsideWashPro.com
+
+Avoid "Route" in the name: Route (getroute.com) is an existing cleaning-industry
+software brand.
+
+## Pen name shortlist
+Common, easy to spell, not tied to a known industry figure:
+- Cole Barrett (top pick)
+- Sam Whitaker
+- Jamie Hollis
+- Drew Calloway
+- Riley Dawson
+Before committing, Google the full name + "pressure washing" to make sure
+you're not echoing a real person in the industry.
 
 Don't use software brand names in the domain (no "JobberReviews.com"). Programs
 reject that and it invites trademark issues.
