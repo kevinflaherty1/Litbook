@@ -1,37 +1,37 @@
-# Your Next Steps (Phase 1–3)
+# Your Next Steps
 
-Status: niche chosen (indoor countertop smart gardens), AI-assisted writing with a pen name.
-See `research/niche-research.md` and `research/decision-ai-content.md`.
+**Status:** niche chosen: **starting and running an exterior cleaning business**
+(pressure washing + window cleaning), monetized by field-service software
+affiliates. AI drafts the articles under a pen name. Research:
+`research/saas-option.md`. Content plan: `content-plan.md`.
+(The garden research is kept in `research/` in case you want it later.)
 
-## Do these this week (about 2 hours total)
-1. **Pick a site name** from the shortlist below (or suggest your own).
-2. **Check the .com is free** at a registrar (Cloudflare Registrar or Porkbun
-   sell at cost, about $10–11/yr; avoid add-ons). Don't buy yet if unsure.
-   Tell me which are taken and I'll suggest more.
+## Do these this week (about 1–2 hours)
+1. **Pick a site name** from the shortlist below, or suggest your own.
+2. **Check the .com is free** at Porkbun or Cloudflare Registrar (~$10–11/yr;
+   skip the add-ons). Tell me which are taken and I'll suggest more.
 3. **Pick a pen name**: a believable first + last name you'll use everywhere.
-4. **Buy the Click & Grow Smart Garden 9** (or Smart Garden 3 if on a tight
-   budget). Use a normal store link, not an affiliate link. Keep the receipt
-   (a business expense), and photograph the unboxing before you open it.
-   That's article #1.
-5. **Open a separate free bank account** (or at least a separate card) for site
-   expenses and income.
+4. **Open a separate bank account or card** for the site's expenses and income.
+5. **Sign up for free trials** of Jobber, Housecall Pro and QuoteIQ *when we
+   start writing those reviews* (not yet; trials expire). Use a business
+   email, not your personal one.
 
-## Name shortlist (brandable, room to grow beyond one product)
-- PodAndSprout.com
-- CounterHarvest.com
-- LeafAndLight.com (probably taken; worth checking)
-- TheCountertopGrower.com
-- SproutCounter.com
-- TinyHarvestHQ.com
-- KitchenPodGarden.com
+## Name shortlist
+Brandable, covers both trades, room to add lawn care/cleaning later:
+- WashRouteHQ.com
+- SoapAndSqueegee.com
+- TheWashBiz.com
+- CurbsideWashPro.com
+- SqueegeeStartup.com
+- ExteriorCleanHQ.com
+- RinseAndRoute.com
 
-Avoid brand names in the domain (no "ClickAndGrowReviews.com"), because that's
-trademark trouble and programs reject it.
+Don't use software brand names in the domain (no "JobberReviews.com"). Programs
+reject that and it invites trademark issues.
 
-## What I'll do once you reply
-- Build the site in this folder (Next.js, free hosting on Vercel): Home, About
-  (pen name), Contact, Disclosure, Privacy, Terms, plus article and comparison
-  page layouts with `/go/` affiliate redirects.
-- Write the first 30-article content plan, ordered by priority.
-- Draft the first articles that don't need your unit yet (beginner guides,
-  AeroGarden-alternatives research piece, labeled as research-based).
+## What I'll do once you send the name + pen name
+- Build the site in this folder (Next.js, free hosting on Vercel): Home, About,
+  Contact, Disclosure, Privacy, Terms, article layouts, `/go/` affiliate redirects.
+- Build the first tool: a **pressure washing price calculator**.
+- Draft the first 10 articles from `content-plan.md` (the ones that need no trials).
+- Give you a step-by-step for connecting the domain and Google Search Console.
