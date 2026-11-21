@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.example.reeltextharvester"
+      "bundleIdentifier": "dev.simplytechnical.canweplease"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.example.reeltextharvester"
+      "package": "dev.simplytechnical.canweplease"
     },
     "web": {
       "favicon": "./assets/favicon.png"

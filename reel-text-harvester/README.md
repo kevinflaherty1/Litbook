@@ -32,8 +32,8 @@ npm run ios            # expo run:ios (needs a Mac with Xcode)
 npx eas-cli@latest build --profile development --platform ios
 ```
 
-Change `ios.bundleIdentifier` / `android.package` in `app.json` (currently `com.example.reeltextharvester`)
-before you ship a build anywhere.
+The app identifier is `dev.simplytechnical.canweplease` (`ios.bundleIdentifier` and `android.package` in
+`app.json`).
 
 Checks:
 
