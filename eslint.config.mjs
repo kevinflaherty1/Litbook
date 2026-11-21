@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "personal-data-migrator/**",
     // Separate affiliate website project with its own package.json.
     "affiliate/**",
+    // Expo mobile app with its own package.json and lint config.
+    "reel-text-harvester/**",
   ]),
 ]);
 

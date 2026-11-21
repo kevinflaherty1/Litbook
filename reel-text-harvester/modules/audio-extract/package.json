@@ -1,0 +1,8 @@
+{
+  "name": "audio-extract",
+  "version": "1.0.0",
+  "description": "Decode a video's audio track to 16 kHz mono 16-bit WAV for on-device speech recognition",
+  "main": "index.ts",
+  "private": true,
+  "license": "MIT"
+}
