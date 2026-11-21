@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Reel Text Harvester",
-    "slug": "reel-text-harvester",
+    "name": "Can We Please",
+    "slug": "canweplease",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -35,6 +35,6 @@
         }
       ]
     ],
-    "scheme": "reeltextharvester"
+    "scheme": "canweplease"
   }
 }

@@ -1,4 +1,4 @@
-# Reel Text Harvester (prototype)
+# Can We Please (prototype)
 
 Pick one of your own **Instagram Saved collections** on your phone and get the text out of every post in
 it: on-screen captions (OCR on sampled video frames), the post caption, and optionally the spoken words
